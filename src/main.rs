@@ -1,8 +1,7 @@
-use clap::Parser;
 use std::path::Path;
-use std::sync::mpsc::channel;
 
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+use clap::Parser;
+use watchcrab::watch_sync;
 
 /// Simple program to watch a directory for changes
 #[derive(Parser, Debug)]
@@ -24,13 +23,8 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    println!("{:?}", args.events);
-
-    let (tx, rx) = channel();
-
-    let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
-
     let path = Path::new(&args.path);
+
     match path {
         _ if path.exists() == false => {
             println!("Path does not exist");
@@ -43,45 +37,5 @@ fn main() {
         _ => (),
     }
 
-    let recursive_mode = if args.recursive {
-        RecursiveMode::Recursive
-    } else {
-        RecursiveMode::NonRecursive
-    };
-
-    watcher
-        .watch(path.canonicalize().unwrap().as_path(), recursive_mode)
-        .unwrap();
-
-    for event in rx {
-        match event {
-            Ok(event) => {
-                let kind_str = if &args.events == &["all"] {
-                    "all"
-                } else if event.kind.is_access() {
-                    "access"
-                } else if event.kind.is_create() {
-                    "create"
-                } else if event.kind.is_modify() {
-                    "modify"
-                } else if event.kind.is_remove() {
-                    "remove"
-                } else {
-                    continue;
-                };
-
-                let kind_str = String::from(kind_str);
-
-                if kind_str == "all" {
-                    println!("{:?}", event);
-                } else if args.events.contains(&kind_str) == true {
-                    println!("{:?}", event);
-                }
-            }
-
-            Err(e) => {
-                println!("watch error: {:?}", e);
-            }
-        }
-    }
+    watch_sync(&path, args.recursive, &args.events);
 }
