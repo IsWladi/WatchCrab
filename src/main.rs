@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use clap::Parser;
+use notify::Event;
 use watchcrab::watch_sync;
 
 /// Simple program to watch a directory for changes
@@ -37,5 +38,10 @@ fn main() {
         _ => (),
     }
 
-    watch_sync(&path, args.recursive, &args.events);
+    // Closure to handle the events
+    let f = |event: Event| {
+        println!("Event: {:?} -> Paths: {:?}", event.kind, event.paths.iter());
+    };
+
+    watch_sync(&path, args.recursive, &args.events, f);
 }

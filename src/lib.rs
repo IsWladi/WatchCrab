@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::mpsc::channel;
 
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 
 /// Watch a directory for changes synchronously
 ///
@@ -9,7 +9,9 @@ use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 /// * `path` - Path to the directory to watch
 /// * `recursive` - Watch directories recursively
 /// * `events` - Events to watch for
-pub fn watch_sync(path: &Path, recursive: bool, events: &Vec<String>) {
+///     e.g. ["all"] or ["access", "create", "modify", "remove"]
+/// * `f` - Function to handle the events, it receives an `Event` object
+pub fn watch_sync(path: &Path, recursive: bool, events: &Vec<String>, f: fn(Event)) {
     let (tx, rx) = channel();
 
     let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
@@ -43,10 +45,8 @@ pub fn watch_sync(path: &Path, recursive: bool, events: &Vec<String>) {
 
                 let kind_str = String::from(kind_str);
 
-                if kind_str == "all" {
-                    println!("{:?}", event);
-                } else if events.contains(&kind_str) == true {
-                    println!("{:?}", event);
+                if kind_str == "all" || events.contains(&kind_str) == true {
+                    f(event);
                 }
             }
 
