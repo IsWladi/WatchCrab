@@ -2,7 +2,7 @@ use clap::Parser;
 use std::path::Path;
 use std::sync::mpsc::channel;
 
-use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 
 /// Simple program to watch a directory for changes
 #[derive(Parser, Debug)]
@@ -16,33 +16,9 @@ struct Args {
     #[arg(short = 'r', long, default_value_t = false)]
     recursive: bool,
 
-    /// Events to watch for, by default it will watch for all events defined in the enum `Event`
-    #[arg(short = 'e', long, num_args = 1.., value_delimiter = ' ', default_values = &["create", "remove"])]
+    /// Events to watch for, by default does not filter any events
+    #[arg(short = 'e', long, num_args = 1.., value_delimiter = ' ', default_values = &["all"])]
     events: Vec<String>,
-}
-
-#[derive(Debug)]
-enum Event {
-    Create,
-    Remove,
-}
-
-impl Event {
-    fn from_str(s: &str) -> Option<Event> {
-        match s {
-            "create" => Some(Event::Create),
-            "remove" => Some(Event::Remove),
-            _ => None,
-        }
-    }
-
-    fn matches_event(kind: &EventKind, event: &Event) -> bool {
-        match (kind, event) {
-            (EventKind::Create(_), Event::Create) => true,
-            (EventKind::Remove(_), Event::Remove) => true,
-            _ => false,
-        }
-    }
 }
 
 fn main() {
@@ -77,24 +53,32 @@ fn main() {
         .watch(path.canonicalize().unwrap().as_path(), recursive_mode)
         .unwrap();
 
-    let user_events: Vec<Event> = args
-        .events
-        .iter()
-        .filter_map(|e| Event::from_str(e))
-        .collect();
-
     for event in rx {
         match event {
             Ok(event) => {
-                // println!("{:?}", event);
-                for kind in &user_events {
-                    // println!("KIND FOR DEBUG: {:?} ", kind);
-                    if Event::matches_event(&event.kind, &kind) {
-                        println!("Event: {:?}, Paths: {:?}", kind, event.paths);
-                        break;
-                    }
+                let kind_str = if &args.events == &["all"] {
+                    "all"
+                } else if event.kind.is_access() {
+                    "access"
+                } else if event.kind.is_create() {
+                    "create"
+                } else if event.kind.is_modify() {
+                    "modify"
+                } else if event.kind.is_remove() {
+                    "remove"
+                } else {
+                    continue;
+                };
+
+                let kind_str = String::from(kind_str);
+
+                if kind_str == "all" {
+                    println!("{:?}", event);
+                } else if args.events.contains(&kind_str) == true {
+                    println!("{:?}", event);
                 }
             }
+
             Err(e) => {
                 println!("watch error: {:?}", e);
             }
