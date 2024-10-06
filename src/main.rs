@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::process::Command;
 
 use clap::Parser;
 use notify::Event;
@@ -39,8 +40,31 @@ fn main() {
     }
 
     // Closure to handle the events
+    // Example of how to execute a command based on the event received
+    // This just prints the path of the file that triggered the event with echo
     let f = |event: Event| {
-        println!("Event: {:?} -> Paths: {:?}", event.kind, event.paths.iter());
+        let output = if cfg!(target_os = "windows") {
+            Command::new("cmd")
+                .args([
+                    "/C",
+                    "echo",
+                    event.paths.iter().next().unwrap().to_str().unwrap(),
+                ])
+                .output()
+                .expect("failed to execute process")
+        } else {
+            Command::new("sh")
+                .arg("-c")
+                .arg(format!(
+                    "echo -n {}",
+                    event.paths.iter().next().unwrap().to_str().unwrap()
+                ))
+                .output()
+                .expect("failed to execute process")
+        };
+
+        let cmd_stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 sequence");
+        println!("echo Event: {:?}, Path: {:?}", event.kind, cmd_stdout);
     };
 
     watch_sync(&path, args.recursive, &args.events, f);
