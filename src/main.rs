@@ -34,12 +34,10 @@ fn main() {
 
     match path {
         _ if path.exists() == false => {
-            println!("Path does not exist");
-            return;
+            panic!("Path does not exist");
         }
         _ if path.is_dir() == false => {
-            println!("Path is not a directory");
-            return;
+            panic!("Path is not a directory");
         }
         _ => (),
     }
@@ -53,19 +51,10 @@ fn main() {
             event.paths.iter().next().unwrap().to_str().unwrap(),
         );
         if args.args == ["{path}"] {
-            let output = if cfg!(target_os = "windows") {
-                Command::new("cmd")
-                    .args(["/C", "echo", &command[0][..]])
-                    .output()
-                    .expect("failed to execute process")
-            } else {
-                Command::new("sh")
-                    .arg("-c")
-                    .arg("echo")
-                    .arg(&command[0][..])
-                    .output()
-                    .expect("failed to execute process")
-            };
+            let output = Command::new("echo")
+                .arg(&command[0])
+                .output()
+                .expect("failed to execute process");
             let cmd_stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 sequence");
             println!("Event: {:?}, stdout: {:?}", event.kind, cmd_stdout);
         } else {
