@@ -56,7 +56,12 @@ fn main() {
                 .output()
                 .expect("failed to execute process");
             let cmd_stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 sequence");
-            println!("Event: {:?}, stdout: {:?}", event.kind, cmd_stdout);
+            println!(
+                "Event: {:?}, Path: {}, stdout: {:?}",
+                event.kind,
+                event.paths.iter().next().unwrap().to_str().unwrap(),
+                cmd_stdout
+            );
         } else {
             let command_str = command.join(" ");
             let output = if cfg!(target_os = "windows") {
@@ -75,7 +80,12 @@ fn main() {
 
             let cmd_stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 sequence");
 
-            println!("Event: {:?}, stdout: {:?}", event.kind, cmd_stdout);
+            println!(
+                "Event: {:?}, Path: {}, stdout: {:?}",
+                event.kind,
+                event.paths.iter().next().unwrap().to_str().unwrap(),
+                cmd_stdout
+            );
         }
     };
 
