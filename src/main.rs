@@ -3,6 +3,7 @@ use std::process::Command;
 
 use clap::Parser;
 use notify::Event;
+use watchcrab::util::parse_command;
 use watchcrab::watch_sync;
 
 /// Simple program to watch a directory for changes
@@ -20,6 +21,10 @@ struct Args {
     /// Events to watch for, by default does not filter any events
     #[arg(short = 'e', long, num_args = 1.., value_delimiter = ' ', default_values = &["all"])]
     events: Vec<String>,
+
+    /// Command to execute when an event is triggered, has to be a valid command and can contain the '{path}' placeholder
+    #[arg(short = 'a', long, num_args = 1.., value_delimiter = ' ', default_values = &["{path}"])]
+    args: Vec<String>,
 }
 
 fn main() {
@@ -43,28 +48,46 @@ fn main() {
     // Example of how to execute a command based on the event received
     // This just prints the path of the file that triggered the event with echo
     let f = |event: Event| {
-        let output = if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args([
-                    "/C",
-                    "echo",
-                    event.paths.iter().next().unwrap().to_str().unwrap(),
-                ])
-                .output()
-                .expect("failed to execute process")
+        let command = parse_command(
+            &args.args,
+            event.paths.iter().next().unwrap().to_str().unwrap(),
+        );
+        if args.args == ["{path}"] {
+            let output = if cfg!(target_os = "windows") {
+                Command::new("cmd")
+                    .args(["/C", "echo", &command[0][..]])
+                    .output()
+                    .expect("failed to execute process")
+            } else {
+                Command::new("sh")
+                    .arg("-c")
+                    .arg("echo")
+                    .arg(&command[0][..])
+                    .output()
+                    .expect("failed to execute process")
+            };
+            let cmd_stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 sequence");
+            println!("Event: {:?}, stdout: {:?}", event.kind, cmd_stdout);
         } else {
-            Command::new("sh")
-                .arg("-c")
-                .arg(format!(
-                    "echo -n {}",
-                    event.paths.iter().next().unwrap().to_str().unwrap()
-                ))
-                .output()
-                .expect("failed to execute process")
-        };
+            let command_str = command.join(" ");
+            let output = if cfg!(target_os = "windows") {
+                Command::new("cmd")
+                    .arg("/C")
+                    .arg(command_str)
+                    .output()
+                    .expect("failed to execute command")
+            } else {
+                Command::new("sh")
+                    .arg("-c")
+                    .arg(command_str)
+                    .output()
+                    .expect("failed to execute command")
+            };
 
-        let cmd_stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 sequence");
-        println!("echo Event: {:?}, Path: {:?}", event.kind, cmd_stdout);
+            let cmd_stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 sequence");
+
+            println!("Event: {:?}, stdout: {:?}", event.kind, cmd_stdout);
+        }
     };
 
     watch_sync(&path, args.recursive, &args.events, f);

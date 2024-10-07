@@ -1,3 +1,4 @@
+pub mod util;
 use std::path::Path;
 use std::sync::mpsc::channel;
 
@@ -11,7 +12,7 @@ use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 /// * `events` - Events to watch for
 ///     e.g. ["all"] or ["access", "create", "modify", "remove"]
 /// * `f` - Function to handle the events, it receives an `Event` object
-pub fn watch_sync(path: &Path, recursive: bool, events: &Vec<String>, f: fn(Event)) {
+pub fn watch_sync(path: &Path, recursive: bool, events: &Vec<String>, f: impl Fn(Event)) {
     let (tx, rx) = channel();
 
     let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
