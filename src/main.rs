@@ -6,7 +6,7 @@ use notify::Event;
 use watchcrab::util::parse_command;
 use watchcrab::watch_sync;
 
-/// Simple program to watch a directory for changes
+/// Simple command line tool to watch a directory for changes and execute a command when an event is triggered
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
@@ -44,7 +44,7 @@ fn main() {
 
     // Closure to handle the events
     // Example of how to execute a command based on the event received
-    // This just prints the path of the file that triggered the event with echo
+    // By default just prints the event kind, path and the stdout of the command
     let f = |event: Event| {
         let command = parse_command(
             &args.args,

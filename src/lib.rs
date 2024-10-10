@@ -1,61 +1,13 @@
+//! # WatchCrab
+//!
+//! `watchcrab` is a command-line tool written in Rust that monitors directories for filesystem events such as file creation, modification, and deletion. It leverages the `notify` crate to efficiently watch directories and trigger specific actions when events occur.
+//!
+//! This tool is particularly useful for automating file processing tasks or generating logs based on filesystem changes. You can pass shell commands as arguments, which will be executed when the corresponding event is triggered, allowing for flexible automation workflows.
+//!
+//! In addition to the command-line tool, you can also integrate the `watchcrab` crate directly into your Rust project. This gives you finer control over how to handle them programmatically, making it a versatile option for more complex or customized file monitoring needs.
+
+//Re-export the main functions for the crate
+pub use self::watch::watch_sync;
+
 pub mod util;
-use std::path::Path;
-use std::sync::mpsc::channel;
-
-use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
-
-/// Watch a directory for changes synchronously
-///
-/// # Arguments
-/// * `path` - Path to the directory to watch
-/// * `recursive` - Watch directories recursively
-/// * `events` - Events to watch for
-///     e.g. ["all"] or ["access", "create", "modify", "remove"]
-/// * `f` - Function to handle the events, it receives an `Event` object
-pub fn watch_sync(path: &Path, recursive: bool, events: &Vec<String>, f: impl Fn(Event)) {
-    let (tx, rx) = channel();
-
-    let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
-
-    let recursive_mode = if recursive {
-        RecursiveMode::Recursive
-    } else {
-        RecursiveMode::NonRecursive
-    };
-
-    watcher
-        .watch(path.canonicalize().unwrap().as_path(), recursive_mode)
-        .unwrap();
-
-    for event in rx {
-        match event {
-            Ok(event) => {
-                let kind_str = if events == &["all"] {
-                    "all"
-                } else if event.kind.is_access() {
-                    "access"
-                } else if event.kind.is_create() {
-                    "create"
-                } else if event.kind.is_modify() {
-                    "modify"
-                } else if event.kind.is_remove() {
-                    "remove"
-                } else {
-                    continue;
-                };
-
-                let kind_str = String::from(kind_str);
-
-                if kind_str == "all" || events.contains(&kind_str) == true {
-                    f(event);
-                }
-            }
-
-            Err(e) => {
-                println!("watch error: {:?}", e);
-            }
-        }
-    }
-}
-
-pub fn watch_async() {}
+pub mod watch;
