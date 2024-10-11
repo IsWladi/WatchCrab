@@ -22,7 +22,7 @@ struct Args {
     #[arg(short = 'e', long, num_args = 1.., value_delimiter = ' ', default_values = &["all"])]
     events: Vec<String>,
 
-    /// Command to execute when an event is triggered, has to be a valid command and can contain the '{path}' placeholder
+    /// Command to execute when an event is triggered, has to be a valid command. Can contain the '{path}' and '{kind}' placeholders
     #[arg(short = 'a', long, num_args = 1.., value_delimiter = ' ', default_values = &["{path}"])]
     args: Vec<String>,
 }
@@ -48,7 +48,8 @@ fn main() {
     let f = |event: Event| {
         let command = parse_command(
             &args.args,
-            event.paths.iter().next().unwrap().to_str().unwrap(),
+            &event.paths.iter().next().unwrap().to_str().unwrap(),
+            &format!("{:?}", event.kind).as_str(),
         );
         if args.args == ["{path}"] {
             let output = Command::new("echo")
@@ -63,6 +64,7 @@ fn main() {
                 cmd_stdout
             );
         } else {
+            // Execute the command and print the stdout
             let command_str = command.join(" ");
             let output = if cfg!(target_os = "windows") {
                 Command::new("cmd")
@@ -80,12 +82,7 @@ fn main() {
 
             let cmd_stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 sequence");
 
-            println!(
-                "Event: {:?}, Path: {}, stdout: {:?}",
-                event.kind,
-                event.paths.iter().next().unwrap().to_str().unwrap(),
-                cmd_stdout
-            );
+            println!("{:?}", cmd_stdout);
         }
     };
 
