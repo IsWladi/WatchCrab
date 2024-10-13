@@ -78,8 +78,7 @@ pub fn watch_sync(path: &Path, recursive: bool, events: &Vec<String>, f: impl Fn
     }
 }
 
-/// Not implemented yet
-
+/// Experimental: Watch a directory for changes asynchronously
 pub fn watch_async(
     path: &Path,
     recursive: bool,
@@ -101,10 +100,8 @@ pub fn watch_async(
         .watch(path.canonicalize().unwrap().as_path(), recursive_mode)
         .unwrap();
 
-    // Crear un pool de threads con el número de hilos especificado
     let pool = ThreadPool::new(num_threads);
 
-    // Envolver el closure `f` en un Arc para compartirlo entre threads
     let f = Arc::new(f);
 
     for event in rx {
@@ -128,7 +125,6 @@ pub fn watch_async(
 
                 if kind_str == "all" || events.contains(&kind_str) {
                     let f = Arc::clone(&f);
-                    // Ejecutar la llamada al closure en el pool de threads
                     pool.execute(move || {
                         f(event);
                     });
