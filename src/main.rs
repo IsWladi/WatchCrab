@@ -52,7 +52,12 @@ fn main() {
             &format!("{:?}", event.kind).as_str(),
         );
         if args.args == ["default"] {
-            println!("{:?}", event);
+            let json_output = format!(
+                r#"{{ "Kind": "{}", "Path": "{}" }}"#,
+                format!("{:?}", event.kind).as_str(),
+                event.paths.iter().next().unwrap().to_str().unwrap()
+            );
+            println!("{}", json_output);
         } else {
             // Execute the command and print the stdout and stderr
             let command_str = command.join(" ");
@@ -73,7 +78,13 @@ fn main() {
             let cmd_stdout = String::from_utf8_lossy(&output.stdout);
             let cmd_stderr = String::from_utf8_lossy(&output.stderr);
 
-            println!("stdout: {:?}, stderr: {:?}", cmd_stdout, cmd_stderr);
+            let json_output = format!(
+                r#"{{ "stdout": "{}", "stderr": "{}" }}"#,
+                cmd_stdout.trim(),
+                cmd_stderr.trim()
+            );
+
+            println!("{}", json_output);
         }
     };
 
