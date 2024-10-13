@@ -1,3 +1,6 @@
+use std::io::prelude::*;
+use std::{fs::OpenOptions, path::PathBuf};
+
 ///Replace the '{path}' and '{kind}' placeholders in a command with the given path and kind
 ///
 /// # Arguments
@@ -15,6 +18,17 @@ pub fn parse_command(command: &Vec<String>, path: &str, kind: &str) -> Vec<Strin
         }
     }
     parsed_command
+}
+
+pub fn write_to_log_file(output_file_path: &PathBuf, output: &str) {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(output_file_path)
+        .expect("Unable to open log file");
+    if let Err(e) = writeln!(file, "{}", output) {
+        eprintln!("Couldn't write to log file: {}", e);
+    }
 }
 
 #[cfg(test)]

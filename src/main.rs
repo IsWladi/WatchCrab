@@ -1,9 +1,9 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use clap::Parser;
 use notify::Event;
-use watchcrab::util::parse_command;
+use watchcrab::util::{parse_command, write_to_log_file};
 use watchcrab::watch_sync;
 
 /// Simple command line tool to watch a directory for changes and execute a command when an event is triggered
@@ -25,6 +25,10 @@ struct Args {
     /// Command to execute when an event is triggered, has to be a valid command. Can contain the '{path}' and '{kind}' placeholders
     #[arg(short = 'a', long, num_args = 1.., value_delimiter = ' ', default_values = &["default"])]
     args: Vec<String>,
+
+    /// Output file to write logs to, by default it will print the logs to stdout
+    #[arg(short, long)]
+    output: Option<String>,
 }
 
 fn main() {
@@ -42,6 +46,22 @@ fn main() {
         _ => (),
     }
 
+    // Check if the output file is required and create it if it does not exist
+    let mut output_file_path = PathBuf::new();
+    let mut output_file_required = false;
+    if args.output.is_some() {
+        output_file_path = PathBuf::from(args.output.unwrap().as_str());
+
+        // Create the file if it does not exist
+        if output_file_path.exists() == false {
+            std::fs::write(&output_file_path, "").expect("Unable to create log file");
+        }
+
+        output_file_path = output_file_path.canonicalize().unwrap(); // Get the absolute path
+
+        output_file_required = true;
+    }
+
     // Closure to handle the events
     // Example of how to execute a command based on the event received
     // By default just prints the event kind, path and the stdout of the command
@@ -53,11 +73,15 @@ fn main() {
         );
         if args.args == ["default"] {
             let json_output = format!(
-                r#"{{ "Kind": "{}", "Path": "{}" }}"#,
+                r#"{{"Kind": "{}", "Path": "{}"}}"#,
                 format!("{:?}", event.kind).as_str(),
                 event.paths.iter().next().unwrap().to_str().unwrap()
             );
-            println!("{}", json_output);
+            if output_file_required {
+                write_to_log_file(&output_file_path, &json_output);
+            } else {
+                println!("{}", json_output);
+            }
         } else {
             // Execute the command and print the stdout and stderr
             let command_str = command.join(" ");
@@ -79,12 +103,16 @@ fn main() {
             let cmd_stderr = String::from_utf8_lossy(&output.stderr);
 
             let json_output = format!(
-                r#"{{ "stdout": "{}", "stderr": "{}" }}"#,
+                r#"{{"stdout": "{}", "stderr": "{}"}}"#,
                 cmd_stdout.trim(),
                 cmd_stderr.trim()
             );
 
-            println!("{}", json_output);
+            if output_file_required {
+                write_to_log_file(&output_file_path, &json_output);
+            } else {
+                println!("{}", json_output);
+            }
         }
     };
 
