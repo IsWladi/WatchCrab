@@ -54,7 +54,7 @@ fn main() {
         if args.args == ["default"] {
             println!("{:?}", event);
         } else {
-            // Execute the command and print the stdout
+            // Execute the command and print the stdout and stderr
             let command_str = command.join(" ");
             let output = if cfg!(target_os = "windows") {
                 Command::new("cmd")
@@ -70,9 +70,10 @@ fn main() {
                     .expect("failed to execute command")
             };
 
-            let cmd_stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 sequence");
+            let cmd_stdout = String::from_utf8_lossy(&output.stdout);
+            let cmd_stderr = String::from_utf8_lossy(&output.stderr);
 
-            println!("{:?}", cmd_stdout);
+            println!("stdout: {:?}, stderr: {:?}", cmd_stdout, cmd_stderr);
         }
     };
 
