@@ -23,7 +23,7 @@ struct Args {
     events: Vec<String>,
 
     /// Command to execute when an event is triggered, has to be a valid command. Can contain the '{path}' and '{kind}' placeholders
-    #[arg(short = 'a', long, num_args = 1.., value_delimiter = ' ', default_values = &["{path}"])]
+    #[arg(short = 'a', long, num_args = 1.., value_delimiter = ' ', default_values = &["default"])]
     args: Vec<String>,
 }
 
@@ -51,18 +51,8 @@ fn main() {
             &event.paths.iter().next().unwrap().to_str().unwrap(),
             &format!("{:?}", event.kind).as_str(),
         );
-        if args.args == ["{path}"] {
-            let output = Command::new("echo")
-                .arg(&command[0])
-                .output()
-                .expect("failed to execute process");
-            let cmd_stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 sequence");
-            println!(
-                "Event: {:?}, Path: {}, stdout: {:?}",
-                event.kind,
-                event.paths.iter().next().unwrap().to_str().unwrap(),
-                cmd_stdout
-            );
+        if args.args == ["default"] {
+            println!("{:?}", event);
         } else {
             // Execute the command and print the stdout
             let command_str = command.join(" ");
