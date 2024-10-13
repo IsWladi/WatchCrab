@@ -12,3 +12,4 @@ repository = "https://github.com/IsWladi/WatchCrab.git"
 [dependencies]
 clap = { version = "4.5.19", features = ["derive"] }
 notify = "6.1.1"
+threadpool = "1.8.1"

@@ -1,7 +1,8 @@
-use std::path::Path;
 use std::sync::mpsc::channel;
+use std::{path::Path, sync::Arc};
 
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
+use threadpool::ThreadPool;
 
 /// Watch a directory for changes synchronously
 ///
@@ -78,4 +79,65 @@ pub fn watch_sync(path: &Path, recursive: bool, events: &Vec<String>, f: impl Fn
 }
 
 /// Not implemented yet
-pub fn watch_async() {}
+
+pub fn watch_async(
+    path: &Path,
+    recursive: bool,
+    events: &Vec<String>,
+    f: impl Fn(Event) + Send + Sync + 'static,
+    num_threads: usize,
+) {
+    let (tx, rx) = channel();
+
+    let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
+
+    let recursive_mode = if recursive {
+        RecursiveMode::Recursive
+    } else {
+        RecursiveMode::NonRecursive
+    };
+
+    watcher
+        .watch(path.canonicalize().unwrap().as_path(), recursive_mode)
+        .unwrap();
+
+    // Crear un pool de threads con el número de hilos especificado
+    let pool = ThreadPool::new(num_threads);
+
+    // Envolver el closure `f` en un Arc para compartirlo entre threads
+    let f = Arc::new(f);
+
+    for event in rx {
+        match event {
+            Ok(event) => {
+                let kind_str = if events == &["all"] {
+                    "all"
+                } else if event.kind.is_access() {
+                    "access"
+                } else if event.kind.is_create() {
+                    "create"
+                } else if event.kind.is_modify() {
+                    "modify"
+                } else if event.kind.is_remove() {
+                    "remove"
+                } else {
+                    continue;
+                };
+
+                let kind_str = String::from(kind_str);
+
+                if kind_str == "all" || events.contains(&kind_str) {
+                    let f = Arc::clone(&f);
+                    // Ejecutar la llamada al closure en el pool de threads
+                    pool.execute(move || {
+                        f(event);
+                    });
+                }
+            }
+
+            Err(e) => {
+                println!("watch error: {:?}", e);
+            }
+        }
+    }
+}

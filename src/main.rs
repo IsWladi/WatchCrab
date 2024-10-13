@@ -4,7 +4,7 @@ use std::process::Command;
 use clap::Parser;
 use notify::Event;
 use watchcrab::util::{parse_command, write_to_log_file};
-use watchcrab::watch_sync;
+use watchcrab::{watch_async, watch_sync};
 
 /// Simple command line tool to watch a directory for changes and execute a command when an event is triggered
 #[derive(Parser, Debug)]
@@ -29,6 +29,14 @@ struct Args {
     /// Output file to write logs to, by default it will print the logs to stdout
     #[arg(short, long)]
     output: Option<String>,
+
+    /// Execute the command as an async closure, by default it will execute the command synchronously
+    #[arg(long)]
+    async_closure: bool,
+
+    /// Number of threads to use when executing the closure asynchronously, by default it will use 4 threads
+    #[arg(short = 't', long, default_value_t = 4)]
+    threads: usize,
 }
 
 fn main() {
@@ -65,7 +73,7 @@ fn main() {
     // Closure to handle the events
     // Example of how to execute a command based on the event received
     // By default just prints the event kind, path and the stdout of the command
-    let f = |event: Event| {
+    let f = move |event: Event| {
         let command = parse_command(
             &args.args,
             &event.paths.iter().next().unwrap().to_str().unwrap(),
@@ -116,5 +124,9 @@ fn main() {
         }
     };
 
-    watch_sync(&path, args.recursive, &args.events, f);
+    if args.async_closure {
+        watch_async(&path, args.recursive, &args.events, f, args.threads);
+    } else {
+        watch_sync(&path, args.recursive, &args.events, f);
+    }
 }
