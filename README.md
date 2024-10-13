@@ -1,5 +1,8 @@
 # WatchCrab
 
+![» Crate](https://flat.badgen.net/crates/v/watchcrab)
+![» Downloads](https://flat.badgen.net/crates/d/watchcrab)
+
 `watchcrab` is a Rust-based command-line tool that monitors directories for filesystem events such as file creation, modification, and deletion. It allows you to execute shell commands when these events occur, making it ideal for automating file processing tasks or generating logs.
 
 ## Project Status
