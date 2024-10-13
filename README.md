@@ -12,7 +12,24 @@ WatchCrab is currently in active development
 - Execute custom shell commands when an event is triggered.
 - Flexible and easy-to-use for automation workflows.
 - JSON output for easy parsing and integration with other tools.
-- Use as a standalone CLI tool or integrate directly into your Rust project for more control.
+
+## Installation
+
+### Binary Installation
+1. No prerequisites are required to run the binary.
+1. Go to the [releases page](https://github.com/IsWladi/WatchCrab/releases) and download the latest version for your operating system.
+2. Add the binary to your PATH or run it directly from the command line.
+
+### Cargo Installation
+Prerequisites:
+- Rust (1.81.0 or later)
+- Cargo
+
+With Rust and Cargo installed, you can install `watchcrab` using the following command:
+
+```bash
+cargo install watchcrab
+```
 
 ## Usage
 
