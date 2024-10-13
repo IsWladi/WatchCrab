@@ -1,5 +1,10 @@
 use std::io::prelude::*;
+use std::sync::Mutex;
 use std::{fs::OpenOptions, path::PathBuf};
+
+lazy_static::lazy_static! {
+    static ref LOG_FILE_MUTEX: Mutex<()> = Mutex::new(());
+}
 
 ///Replace the '{path}' and '{kind}' placeholders in a command with the given path and kind
 ///
@@ -32,6 +37,7 @@ pub fn parse_command(command: &Vec<String>, path: &str, kind: &str) -> Vec<Strin
 /// # Errors
 /// Errors if the output can't be written to the log file
 pub fn write_to_log_file(output_file_path: &PathBuf, output: &str) {
+    let _lock = LOG_FILE_MUTEX.lock().unwrap();
     let mut file = OpenOptions::new()
         .write(true)
         .append(true)
