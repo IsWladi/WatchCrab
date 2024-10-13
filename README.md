@@ -92,6 +92,14 @@ You can chain multiple commands together. For instance, to log an event, copy th
 watchcrab --path /path/to/directory --events create --args "echo 'Event: {kind} -> Path: {path}' && cp -r {path} ./backup && echo 'log {kind} -> {path}' >> ./log.log"
 ```
 
+#### 6. Experimental: Execute args with threads
+
+You can enable the `--async-closure` flag to run the command in a separate thread. This can be useful for long-running commands or when you want to process multiple events concurrently.
+
+```bash
+watchcrab --path /path/to/directory --args "sleep 5 && echo 'Event: {kind} -> Path: {path}'" --async-closure --threads 4
+```
+
 ## Additional Documentation
 
 You can find the full documentation for watchcrab on [crates.io](https://crates.io/crates/watchcrab).
