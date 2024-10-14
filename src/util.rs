@@ -25,6 +25,29 @@ pub fn parse_command(command: &Vec<String>, path: &str, kind: &str) -> Vec<Strin
     parsed_command
 }
 
+///Write the output to a log file thread-safely
+///
+/// # Arguments
+/// * `output_file_path` - Path to the log file
+/// * `output` - Output to write to the log file
+///
+/// # Panics
+/// Panics if the log file can't be opened
+///
+/// # Errors
+/// Errors if the output can't be written to the log file
+pub fn write_to_log_file_async(output_file_path: &PathBuf, output: &str) {
+    let _lock = LOG_FILE_MUTEX.lock().unwrap(); // To make sure only one thread writes to the log file at a time
+    let mut file = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(output_file_path)
+        .expect("Unable to open log file");
+    if let Err(e) = writeln!(file, "{}", output) {
+        eprintln!("Couldn't write to log file: {}", e);
+    }
+}
+
 ///Write the output to a log file
 ///
 /// # Arguments
@@ -37,7 +60,6 @@ pub fn parse_command(command: &Vec<String>, path: &str, kind: &str) -> Vec<Strin
 /// # Errors
 /// Errors if the output can't be written to the log file
 pub fn write_to_log_file(output_file_path: &PathBuf, output: &str) {
-    let _lock = LOG_FILE_MUTEX.lock().unwrap();
     let mut file = OpenOptions::new()
         .write(true)
         .append(true)

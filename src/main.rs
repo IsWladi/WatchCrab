@@ -3,7 +3,7 @@ use std::process::Command;
 
 use clap::Parser;
 use notify::Event;
-use watchcrab::util::{parse_command, write_to_log_file};
+use watchcrab::util::{parse_command, write_to_log_file, write_to_log_file_async};
 use watchcrab::{watch_async, watch_sync};
 
 /// Simple command line tool to watch a directory for changes and execute a command when an event is triggered
@@ -54,6 +54,13 @@ fn main() {
         _ => (),
     }
 
+    // Select the write to log file function based on the async_closure flag
+    let write_to_log = if args.async_closure {
+        write_to_log_file_async
+    } else {
+        write_to_log_file
+    };
+
     // Check if the output file is required and create it if it does not exist
     let mut output_file_path = PathBuf::new();
     let mut output_file_required = false;
@@ -86,7 +93,7 @@ fn main() {
                 event.paths.iter().next().unwrap().to_str().unwrap()
             );
             if output_file_required {
-                write_to_log_file(&output_file_path, &json_output);
+                write_to_log(&output_file_path, &json_output);
             } else {
                 println!("{}", json_output);
             }
@@ -117,7 +124,7 @@ fn main() {
             );
 
             if output_file_required {
-                write_to_log_file(&output_file_path, &json_output);
+                write_to_log(&output_file_path, &json_output);
             } else {
                 println!("{}", json_output);
             }
