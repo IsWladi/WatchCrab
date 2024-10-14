@@ -30,12 +30,8 @@ struct Args {
     #[arg(short, long)]
     output: Option<String>,
 
-    /// Execute the command as an async closure, by default it will execute the command synchronously
-    #[arg(long)]
-    async_closure: bool,
-
-    /// Number of threads to use when executing the closure asynchronously, by default it will use 4 threads
-    #[arg(short = 't', long, default_value_t = 4)]
+    /// Number of threads to execute the command in, by default it will execute the command in the main thread
+    #[arg(short = 't', long, default_value_t = 1)]
     threads: usize,
 }
 
@@ -54,8 +50,8 @@ fn main() {
         _ => (),
     }
 
-    // Select the write to log file function based on the async_closure flag
-    let write_to_log = if args.async_closure {
+    // Select the write to log file function based on the threads flag
+    let write_to_log = if args.threads > 1 {
         write_to_log_file_async
     } else {
         write_to_log_file
@@ -131,7 +127,7 @@ fn main() {
         }
     };
 
-    if args.async_closure {
+    if args.threads > 1 {
         watch_async(&path, args.recursive, &args.events, f, args.threads);
     } else {
         watch_sync(&path, args.recursive, &args.events, f);
