@@ -20,8 +20,9 @@ WatchCrab is currently in active development
 
 ### Binary Installation
 1. No prerequisites are required to run the binary.
-1. Go to the [releases page](https://github.com/IsWladi/WatchCrab/releases) and download the latest version for your operating system.
-2. Add the binary to your PATH or run it directly from the command line.
+2. Go to the [releases page](https://github.com/IsWladi/WatchCrab/releases) and download the latest version for your operating system.
+3. Extract the .zip file to a directory of your choice.
+4. Add the binary to your PATH or provide the full path when running the command (or create an alias).
 
 ### Cargo Installation
 Prerequisites:
@@ -42,66 +43,14 @@ To view all available options, use the `--help` flag:
 watchcrab --help
 ```
 
-### Common Use Cases
-
-#### 1. Monitor filesystem events in a specific directory
-
-To start watching a directory for all filesystem events:
+For example, for starting to watch a directory for all filesystem events in the current directory recursively:
 
 ```bash
-watchcrab --path /path/to/directory
+watchcrab --recursive
 ```
 
-#### 2. Recursively watch a directory and all its subdirectories
+To view common usage examples, see the [usage examples](docs/usage_examples.md) documentation.
 
-Enable recursive watching by adding the `--recursive` flag:
-
-```bash
-watchcrab --path /path/to/directory --recursive
-```
-
-#### 3. Filter events by type
-
-You can specify which event types to monitor using the `--events` flag. For example, to only watch for file creation events:
-
-```bash
-watchcrab --path /path/to/directory --events create
-```
-
-To monitor multiple events, separate them with spaces:
-
-```bash
-watchcrab --path /path/to/directory --events create modify
-```
-
-#### 4. Execute a shell command when an event is triggered
-
-The `--args` flag allows you to run a custom shell command when an event is detected. You can use placeholders in your command:
-
-- `{kind}`: The type of event (e.g., create, modify, delete).
-- `{path}`: The path to the file that triggered the event.
-
-For example, to log each event:
-
-```bash
-watchcrab --path /path/to/directory --args "echo 'Event: {kind} -> Path: {path}'"
-```
-
-#### 5. Complex command execution
-
-You can chain multiple commands together. For instance, to log an event, copy the file, and update a log file:
-
-```bash
-watchcrab --path /path/to/directory --events create --args "echo 'Event: {kind} -> Path: {path}' && cp -r {path} ./backup && echo 'log {kind} -> {path}' >> ./log.log"
-```
-
-#### 6. Experimental: Execute args with threads
-
-You can enable the `--async-closure` flag to run the command in a separate thread. This can be useful for long-running commands or when you want to process multiple events concurrently.
-
-```bash
-watchcrab --path /path/to/directory --args "sleep 5 && echo 'Event: {kind} -> Path: {path}'" --async-closure --threads 4
-```
 
 ## Additional Documentation
 
