@@ -40,7 +40,7 @@ struct Args {
 }
 
 fn main() {
-    let args = Args::parse();
+    let mut args = Args::parse();
 
     let path = Path::new(&args.path);
 
@@ -58,6 +58,13 @@ fn main() {
     let cmd_required = args.sh_cmd.is_some();
     if cmd_required && args.args.is_none() {
         panic!("Arguments are required when --sh-cmd is provided");
+    } else if cmd_required == false && args.args.is_some() {
+        // If args are provided but the shell command is not, then infer the shell command based on the OS
+        args.sh_cmd = if cfg!(target_os = "windows") {
+            Some("cmd /C".to_string())
+        } else {
+            Some("sh -c".to_string())
+        };
     }
     let sh_cmd_split: Vec<String> = args
         .sh_cmd
@@ -94,10 +101,9 @@ fn main() {
     }
 
     // Closure to handle the events
-    // Example of how to execute a command based on the event received
-    // By default just prints the event kind, path and the stdout of the command
     let f = move |event: Event| {
-        if !cmd_required {
+        // By default just prints the event kind and path of the file that triggered the event
+        if !cmd_required && args.args.is_none() {
             let json_output = format!(
                 r#"{{"Kind": "{}", "Path": "{}"}}"#,
                 format!("{:?}", event.kind).as_str(),
@@ -108,6 +114,7 @@ fn main() {
             } else {
                 println!("{}", json_output);
             }
+        // If args are provided, then parse the command and execute it
         } else {
             let parsed_args = parse_command(
                 args.args.clone().unwrap().as_ref(),
