@@ -10,7 +10,7 @@ use watchcrab::{watch_async, watch_sync};
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Path to watch, it has to be an absolute path
+    /// Path to watch
     #[arg(short = 'p', long, default_value_t = String::from("./"))]
     path: String,
 
@@ -22,21 +22,21 @@ struct Args {
     #[arg(short = 'e', long, num_args = 1.., value_delimiter = ' ', default_values = &["all"])]
     events: Vec<String>,
 
-    /// shell command to execute when an event is triggered, by default it will not execute any command
+    /// shell command that will receive the --args as a string, by default it will use "sh -c" or "cmd /C" based on the OS
     #[arg(short = 's', long)]
     sh_cmd: Option<String>,
 
-    /// Arguments to be passed to the command, by default it will not pass any arguments
+    /// Arguments to be passed to the shell command, by default it will not pass any arguments
     #[arg(short = 'a', long, num_args = 1.., value_delimiter = ' ')]
     args: Option<Vec<String>>,
-
-    /// Output file to write logs to, by default it will print the logs to stdout
-    #[arg(short, long)]
-    output: Option<String>,
 
     /// Number of threads to execute the command in, by default it will execute the command in the main thread
     #[arg(short = 't', long, default_value_t = 1)]
     threads: usize,
+
+    /// Output file to write logs to, by default it will print the logs to stdout
+    #[arg(short, long)]
+    output: Option<String>,
 }
 
 fn main() {
