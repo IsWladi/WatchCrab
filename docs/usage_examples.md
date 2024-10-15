@@ -43,6 +43,14 @@ For example, to log each event:
 watchcrab --path /path/to/directory --args "echo 'Event: {kind} -> Path: {path}'"
 ```
 
+The `--args` string is passed directly to the shell, so you can use any valid shell command, by default it uses `sh -c` or `cmd /C` depending on the OS.
+
+You can choose the shell to use with the `--sh-cmd` flag:
+
+```bash
+watchcrab --path /path/to/directory  --sh-cmd "bash -c" --args "echo 'Event: {kind} -> Path: {path}'"
+```
+
 ## 5. Complex command execution
 
 You can chain multiple commands together. For instance, to log an event, copy the file, and update a log file:
@@ -54,8 +62,8 @@ watchcrab --path /path/to/directory --events create --args "echo 'Event: {kind} 
 ## 6. Asynchronous execution
 
 If you want to run the shell command asynchronously, you can use --threads to specify the number of threads to use. For example, to run the command in four threads:
-**Note:** If you use the `--threads` flag with 1 thread, the command will run synchronously.
 
 ```bash
 watchcrab --path /path/to/directory --args "sleep 5 && echo 'Event: {kind} -> Path: {path}'" --threads 4
 ```
+**Note:** If you use the `--threads` flag with 1 thread, the command will run synchronously.

@@ -49,7 +49,7 @@ For example, for starting to watch a directory for all filesystem events in the 
 watchcrab --recursive
 ```
 
-To view common usage examples, see the [usage examples](docs/usage_examples.md) documentation.
+To view common usage examples, see the [usage examples](./docs/usage_examples.md) documentation.
 
 
 ## Additional Documentation
