@@ -7,12 +7,13 @@
 
 ## Project Status
 
-WatchCrab is currently in active development
+WatchCrab is currently with the main features implemented but is not stable yet. The project is under active development, and new features and improvements are being added regularly. If you encounter any issues or have suggestions for improvements, please open an issue.
 
 ## Features
 
 - Watch directories for filesystem events.
-- Execute custom shell commands when an event is triggered.
+- Execute shell commands when an event is triggered.
+- Optional asynchronous event handling.
 - Flexible and easy-to-use for automation workflows.
 - JSON output for easy parsing and integration with other tools.
 
@@ -49,7 +50,7 @@ For example, for starting to watch a directory for all filesystem events in the 
 watchcrab --recursive
 ```
 
-To view common usage examples, see the [usage examples](./docs/usage_examples.md) documentation.
+To view more usage examples, see the [usage examples](./docs/usage_examples.md) documentation.
 
 
 ## Additional Documentation
