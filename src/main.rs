@@ -22,9 +22,13 @@ struct Args {
     #[arg(short = 'e', long, num_args = 1.., value_delimiter = ' ', default_values = &["all"])]
     events: Vec<String>,
 
-    /// Command to execute when an event is triggered, has to be a valid command. Can contain the '{path}' and '{kind}' placeholders
-    #[arg(short = 'a', long, num_args = 1.., value_delimiter = ' ', default_values = &["default"])]
-    args: Vec<String>,
+    /// shell command to execute when an event is triggered, by default it will not execute any command
+    #[arg(short = 's', long)]
+    sh_cmd: Option<String>,
+
+    /// Arguments to be passed to the command, by default it will not pass any arguments
+    #[arg(short = 'a', long, num_args = 1.., value_delimiter = ' ')]
+    args: Option<Vec<String>>,
 
     /// Output file to write logs to, by default it will print the logs to stdout
     #[arg(short, long)]
@@ -48,6 +52,22 @@ fn main() {
             panic!("Path is not a directory");
         }
         _ => (),
+    }
+
+    // Validate the shell command
+    let cmd_required = args.sh_cmd.is_some();
+    if cmd_required && args.args.is_none() {
+        panic!("Arguments are required when --sh-cmd is provided");
+    }
+    let sh_cmd_split: Vec<String> = args
+        .sh_cmd
+        .unwrap()
+        .trim()
+        .split(" ")
+        .map(|s| s.to_string())
+        .collect();
+    if sh_cmd_split.len() != 2 {
+        panic!("Invalid shell command, should be in the format: <shell> <command> for example: /bin/bash -c");
     }
 
     // Select the write to log file function based on the threads flag
@@ -77,12 +97,7 @@ fn main() {
     // Example of how to execute a command based on the event received
     // By default just prints the event kind, path and the stdout of the command
     let f = move |event: Event| {
-        let command = parse_command(
-            &args.args,
-            &event.paths.iter().next().unwrap().to_str().unwrap(),
-            &format!("{:?}", event.kind).as_str(),
-        );
-        if args.args == ["default"] {
+        if !cmd_required {
             let json_output = format!(
                 r#"{{"Kind": "{}", "Path": "{}"}}"#,
                 format!("{:?}", event.kind).as_str(),
@@ -94,21 +109,19 @@ fn main() {
                 println!("{}", json_output);
             }
         } else {
+            let parsed_args = parse_command(
+                args.args.clone().unwrap().as_ref(),
+                &event.paths.iter().next().unwrap().to_str().unwrap(),
+                &format!("{:?}", event.kind).as_str(),
+            );
+
             // Execute the command and print the stdout and stderr
-            let command_str = command.join(" ");
-            let output = if cfg!(target_os = "windows") {
-                Command::new("cmd")
-                    .arg("/C")
-                    .arg(command_str)
-                    .output()
-                    .expect("failed to execute command")
-            } else {
-                Command::new("sh")
-                    .arg("-c")
-                    .arg(command_str)
-                    .output()
-                    .expect("failed to execute command")
-            };
+            let args_str = parsed_args.join(" ");
+            let output = Command::new(&sh_cmd_split[0])
+                .arg(&sh_cmd_split[1])
+                .arg(args_str)
+                .output()
+                .expect("failed to execute command");
 
             let cmd_stdout = String::from_utf8_lossy(&output.stdout);
             let cmd_stderr = String::from_utf8_lossy(&output.stderr);
