@@ -7,8 +7,7 @@
 //! In addition to the command-line tool, you can also integrate the `watchcrab` crate directly into your Rust project. This gives you finer control over how to handle them programmatically, making it a versatile option for more complex or customized file monitoring needs.
 
 //Re-export the main functions for the crate
-pub use self::watch::watch_async;
-pub use self::watch::watch_sync;
+pub use self::watch::watch;
 
 pub mod util;
 pub mod watch;

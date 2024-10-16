@@ -4,7 +4,7 @@ use std::process::Command;
 use clap::Parser;
 use notify::Event;
 use watchcrab::util::{parse_command, write_to_log_file, write_to_log_file_async};
-use watchcrab::{watch_async, watch_sync};
+use watchcrab::watch;
 
 /// Simple command line tool to watch a directory for changes and execute a command when an event is triggered
 #[derive(Parser, Debug)]
@@ -147,9 +147,5 @@ fn main() {
         }
     };
 
-    if args.threads > 1 {
-        watch_async(&path, args.recursive, &args.events, f, args.threads);
-    } else {
-        watch_sync(&path, args.recursive, &args.events, f);
-    }
+    watch(&path, args.recursive, &args.events, f, args.threads);
 }
