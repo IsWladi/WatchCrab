@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
 
 use clap::Parser;
 use notify::Event;
 use watchcrab::util::{parse_command, write_to_log_file, write_to_log_file_async};
-use watchcrab::watch;
+use watchcrab::Watch;
 
 /// Simple command line tool to watch a directory for changes and execute a command when an event is triggered
 #[derive(Parser, Debug)]
@@ -101,7 +102,7 @@ fn main() {
     }
 
     // Closure to handle the events
-    let f = move |event: Event| {
+    let f = Arc::new(Box::new(move |event: Event| {
         // By default just prints the event kind and path of the file that triggered the event
         if !cmd_required && args.args.is_none() {
             let json_output = format!(
@@ -114,7 +115,7 @@ fn main() {
             } else {
                 println!("{}", json_output);
             }
-        // If args are provided, then parse the command and execute it
+            // If args are provided, then parse the command and execute it
         } else {
             let parsed_args = parse_command(
                 args.args.clone().unwrap().as_ref(),
@@ -145,7 +146,7 @@ fn main() {
                 println!("{}", json_output);
             }
         }
-    };
+    }) as Box<dyn Fn(Event) + Send + Sync + 'static>);
 
-    watch(&path, args.recursive, &args.events, f, args.threads);
+    Watch::new(&path, args.recursive, &args.events, f, args.threads).start();
 }

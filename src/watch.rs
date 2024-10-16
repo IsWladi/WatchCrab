@@ -21,79 +21,100 @@ use threadpool::ThreadPool;
 /// ```no_run
 /// use std::path::Path;
 /// use notify::Event;
-/// use watchcrab::watch::watch;
+/// use std::sync::Arc;
+/// use watchcrab::watch::Watch;
+///
 ///
 /// let path = Path::new("./"); // Watch the current directory, you can change this to any path
 /// let recursive = false; // Watch only the top level directory, you can change this to true
 /// let events = vec!["all".to_string()]; // Watch all events, you can change this to ["access", "create", "modify", "remove"] or any combination of these, at least one is required
-/// let f = |event: Event| {
+/// let f = Arc::new(Box::new(move |event: Event| {
 ///    println!("{:?}", event); // Print the event, you can replace this with your own logic
-/// };
+/// }) as Box<dyn Fn(Event) + Send + Sync + 'static>);
 ///
-/// watch(&path, recursive, &events, f, 1);
+/// Watch::new(&path, recursive, &events, f, 1).start();
 /// ```
-pub fn watch(
-    path: &Path,
+
+pub struct Watch<'a> {
+    path: &'a Path,
     recursive: bool,
-    events: &Vec<String>,
-    f: impl Fn(Event) + Send + Sync + 'static,
+    events: &'a Vec<String>,
+    f: Arc<Box<dyn Fn(Event) + Send + Sync + 'static>>,
     num_threads: usize,
-) {
-    let (tx, rx) = channel();
+}
 
-    let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
+impl<'a> Watch<'a> {
+    pub fn new(
+        path: &'a Path,
+        recursive: bool,
+        events: &'a Vec<String>,
+        f: Arc<Box<dyn Fn(Event) + Send + Sync + 'static>>,
+        num_threads: usize,
+    ) -> Watch<'a> {
+        Watch {
+            path,
+            recursive,
+            events,
+            f,
+            num_threads,
+        }
+    }
 
-    let recursive_mode = if recursive {
-        RecursiveMode::Recursive
-    } else {
-        RecursiveMode::NonRecursive
-    };
+    pub fn start(&self) {
+        let (tx, rx) = channel();
 
-    watcher
-        .watch(path.canonicalize().unwrap().as_path(), recursive_mode)
-        .unwrap();
+        let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
 
-    let pool: Option<ThreadPool> = if num_threads > 1 {
-        Some(ThreadPool::new(num_threads))
-    } else {
-        None
-    };
+        let recursive_mode = if self.recursive {
+            RecursiveMode::Recursive
+        } else {
+            RecursiveMode::NonRecursive
+        };
 
-    let f = Arc::new(f);
+        watcher
+            .watch(self.path.canonicalize().unwrap().as_path(), recursive_mode)
+            .unwrap();
 
-    for event in rx {
-        match event {
-            Ok(event) => {
-                let kind_str = if events == &["all"] {
-                    "all"
-                } else if event.kind.is_access() {
-                    "access"
-                } else if event.kind.is_create() {
-                    "create"
-                } else if event.kind.is_modify() {
-                    "modify"
-                } else if event.kind.is_remove() {
-                    "remove"
-                } else {
-                    continue;
-                };
+        let pool: Option<ThreadPool> = if self.num_threads > 1 {
+            Some(ThreadPool::new(self.num_threads))
+        } else {
+            None
+        };
 
-                let kind_str = String::from(kind_str);
-
-                if kind_str == "all" || events.contains(&kind_str) {
-                    let f = Arc::clone(&f);
-                    if let Some(pool) = &pool {
-                        pool.execute(move || {
-                            f(event);
-                        });
+        for event in rx {
+            match event {
+                Ok(event) => {
+                    let kind_str = if self.events == &["all"] {
+                        "all"
+                    } else if event.kind.is_access() {
+                        "access"
+                    } else if event.kind.is_create() {
+                        "create"
+                    } else if event.kind.is_modify() {
+                        "modify"
+                    } else if event.kind.is_remove() {
+                        "remove"
                     } else {
-                        f(event);
+                        continue;
+                    };
+
+                    let kind_str = String::from(kind_str);
+
+                    if kind_str == "all" || self.events.contains(&kind_str) {
+                        if let Some(pool) = &pool {
+                            let f = Arc::clone(&self.f);
+                            pool.execute(move || {
+                                f(event);
+                            });
+                        } else {
+                            (self.f)(event)
+                        }
                     }
                 }
-            }
 
-            Err(e) => {
-                println!("watch error: {:?}", e);
+                Err(e) => {
+                    println!("watch error: {:?}", e);
+                }
             }
         }
     }
