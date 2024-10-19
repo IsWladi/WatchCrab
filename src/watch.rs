@@ -1,3 +1,6 @@
+use std::io::Error;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use std::sync::mpsc::channel;
 use std::{path::Path, sync::Arc};
 
@@ -43,6 +46,12 @@ pub struct Watch<'a> {
     num_threads: usize,
 }
 
+impl Drop for Watch<'_> {
+    fn drop(&mut self) {
+        println!("Dropping Watch");
+    }
+}
+
 impl<'a> Watch<'a> {
     pub fn new(
         path: &'a Path,
@@ -60,7 +69,7 @@ impl<'a> Watch<'a> {
         }
     }
 
-    pub fn start(&self) {
+    pub fn start(&self) -> Result<(), Error> {
         let (tx, rx) = channel();
 
         let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
@@ -81,7 +90,14 @@ impl<'a> Watch<'a> {
             None
         };
 
+        let term = Arc::new(AtomicBool::new(false));
+        signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term))?;
+
         for event in rx {
+            if term.load(Ordering::Relaxed) {
+                println!("Exiting watcher loop");
+                return Ok(());
+            }
             match event {
                 Ok(event) => {
                     let kind_str = if self.events == &["all"] {
@@ -117,5 +133,6 @@ impl<'a> Watch<'a> {
                 }
             }
         }
+        Ok(())
     }
 }

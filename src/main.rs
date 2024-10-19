@@ -148,5 +148,16 @@ fn main() {
         }
     }) as Box<dyn Fn(Event) + Send + Sync + 'static>);
 
-    Watch::new(&path, args.recursive, &args.events, f, args.threads).start();
+    let watchcrab_watch = Watch::new(&path, args.recursive, &args.events, f, args.threads);
+    let result = watchcrab_watch.start();
+
+    match result {
+        Ok(_) => {
+            println!("Exiting watch from main");
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    }
 }
