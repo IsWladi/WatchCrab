@@ -15,4 +15,5 @@ notify = "6.1.1"
 threadpool = "1.8.1"
 lazy_static = "1.5.0"
 signal-hook = "0.3.17"
+libc = "0.2"
 

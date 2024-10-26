@@ -1,5 +1,6 @@
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 use clap::Parser;
@@ -74,7 +75,7 @@ fn main() {
         .split(" ")
         .map(|s| s.to_string())
         .collect();
-    if sh_cmd_split.len() != 2 {
+    if sh_cmd_split.len() < 1 {
         panic!("Invalid shell command, should be in the format: <shell> <command> for example: /bin/bash -c");
     }
 
@@ -125,29 +126,52 @@ fn main() {
 
             // Execute the command and print the stdout and stderr
             let args_str = parsed_args.join(" ");
-            let output = Command::new(&sh_cmd_split[0])
-                .arg(&sh_cmd_split[1])
-                .arg(args_str)
-                .output()
-                .expect("failed to execute command");
 
-            let cmd_stdout = String::from_utf8_lossy(&output.stdout);
-            let cmd_stderr = String::from_utf8_lossy(&output.stderr);
+            let child = unsafe {
+                Command::new(&sh_cmd_split[0])
+                    .arg(&sh_cmd_split[1])
+                    .arg(args_str)
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .pre_exec(|| {
+                        if libc::setsid() == -1 {
+                            return Err(std::io::Error::last_os_error());
+                        }
 
-            let json_output = format!(
-                r#"{{"stdout": "{}", "stderr": "{}"}}"#,
-                cmd_stdout.trim(),
-                cmd_stderr.trim()
-            );
+                        libc::signal(libc::SIGINT, libc::SIG_IGN);
 
-            if output_file_required {
-                write_to_log(&output_file_path, &json_output);
+                        Ok(())
+                    })
+                    .spawn()
+                    .expect("failed to execute command")
+            };
+
+            if let Ok(output) = child.wait_with_output() {
+                let cmd_stdout = String::from_utf8_lossy(&output.stdout);
+                let cmd_stderr = String::from_utf8_lossy(&output.stderr);
+
+                let json_output = format!(
+                    r#"{{"stdout": "{}", "stderr": "{}"}}"#,
+                    cmd_stdout.trim(),
+                    cmd_stderr.trim()
+                );
+
+                if output_file_required {
+                    write_to_log(&output_file_path, &json_output);
+                } else {
+                    println!("{}", json_output);
+                }
             } else {
-                println!("{}", json_output);
+                eprintln!("Command terminated unexpectedly.");
             }
         }
     }) as Box<dyn Fn(Event) + Send + Sync + 'static>);
 
+    // if windows, warning about the threads flag
+    if cfg!(target_os = "windows") && args.threads > 1 {
+        // The program may not work as expected on Windows with multiple threads when send a termination signal
+        eprintln!("Warning: The program may not work as expected on Windows with multiple threads when send a termination signal");
+    }
     let watchcrab_watch = Watch::new(&path, args.recursive, &args.events, f, args.threads);
     let result = watchcrab_watch.start();
 

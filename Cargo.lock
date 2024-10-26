@@ -394,6 +394,7 @@ version = "0.5.0"
 dependencies = [
  "clap",
  "lazy_static",
+ "libc",
  "notify",
  "signal-hook",
  "threadpool",

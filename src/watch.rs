@@ -43,13 +43,9 @@ pub struct Watch<'a> {
     recursive: bool,
     events: &'a Vec<String>,
     f: Arc<Box<dyn Fn(Event) + Send + Sync + 'static>>,
-    num_threads: usize,
-}
-
-impl Drop for Watch<'_> {
-    fn drop(&mut self) {
-        println!("Dropping Watch");
-    }
+    #[allow(dead_code)]
+    num_threads: usize, // is used in the constructor for initializing the thread pool
+    pool: Option<ThreadPool>,
 }
 
 impl<'a> Watch<'a> {
@@ -66,6 +62,11 @@ impl<'a> Watch<'a> {
             events,
             f,
             num_threads,
+            pool: if num_threads > 1 {
+                Some(ThreadPool::new(num_threads))
+            } else {
+                None
+            },
         }
     }
 
@@ -84,55 +85,92 @@ impl<'a> Watch<'a> {
             .watch(self.path.canonicalize().unwrap().as_path(), recursive_mode)
             .unwrap();
 
-        let pool: Option<ThreadPool> = if self.num_threads > 1 {
-            Some(ThreadPool::new(self.num_threads))
-        } else {
-            None
-        };
-
         let term = Arc::new(AtomicBool::new(false));
         signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term))?;
+        let mut cleaning_mode = false;
 
-        for event in rx {
-            if term.load(Ordering::Relaxed) {
-                println!("Exiting watcher loop");
-                return Ok(());
+        loop {
+            if term.load(Ordering::Relaxed) && !cleaning_mode {
+                // Stop the watcher
+                let _ = watcher.unwatch(self.path.canonicalize().unwrap().as_path());
+                cleaning_mode = true;
+                // Continue to process remaining events
             }
-            match event {
-                Ok(event) => {
-                    let kind_str = if self.events == &["all"] {
-                        "all"
-                    } else if event.kind.is_access() {
-                        "access"
-                    } else if event.kind.is_create() {
-                        "create"
-                    } else if event.kind.is_modify() {
-                        "modify"
-                    } else if event.kind.is_remove() {
-                        "remove"
-                    } else {
-                        continue;
-                    };
 
-                    let kind_str = String::from(kind_str);
-
-                    if kind_str == "all" || self.events.contains(&kind_str) {
-                        if let Some(pool) = &pool {
-                            let f = Arc::clone(&self.f);
-                            pool.execute(move || {
-                                f(event);
-                            });
-                        } else {
-                            (self.f)(event)
-                        }
+            if cleaning_mode {
+                // Use try_recv to process remaining events
+                match rx.try_recv() {
+                    Ok(event_result) => {
+                        process_event(event_result, &self.events, &self.f, &self.pool);
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                        // No more events, break the loop
+                        break;
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        // Channel disconnected, break the loop
+                        break;
                     }
                 }
-
-                Err(e) => {
-                    println!("watch error: {:?}", e);
+            } else {
+                match rx.recv() {
+                    Ok(event_result) => {
+                        process_event(event_result, &self.events, &self.f, &self.pool);
+                    }
+                    Err(e) => {
+                        println!("Channel receive error: {:?}", e);
+                        break;
+                    }
                 }
             }
         }
+
+        //wait for all threads to finish
+        if let Some(pool) = &self.pool {
+            pool.join();
+        }
+
         Ok(())
+    }
+}
+
+fn process_event(
+    event_result: Result<Event, notify::Error>,
+    events_filter: &Vec<String>,
+    handler: &Arc<Box<dyn Fn(Event) + Send + Sync + 'static>>,
+    pool: &Option<ThreadPool>,
+) {
+    match event_result {
+        Ok(event) => {
+            let kind_str = if events_filter == &["all"] {
+                "all"
+            } else if event.kind.is_access() {
+                "access"
+            } else if event.kind.is_create() {
+                "create"
+            } else if event.kind.is_modify() {
+                "modify"
+            } else if event.kind.is_remove() {
+                "remove"
+            } else {
+                return;
+            };
+
+            let kind_str = String::from(kind_str);
+
+            if kind_str == "all" || events_filter.contains(&kind_str) {
+                if let Some(pool) = pool {
+                    let f = Arc::clone(handler);
+                    pool.execute(move || {
+                        f(event.clone());
+                    });
+                } else {
+                    handler(event)
+                }
+            }
+        }
+        Err(e) => {
+            println!("Watch error: {:?}", e);
+        }
     }
 }
