@@ -1,4 +1,4 @@
-# Common Use Cases
+# Usage Examples
 
 ## 1. Monitor filesystem events in a specific directory
 
