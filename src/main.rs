@@ -1,10 +1,18 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::Child;
+use std::sync::Arc;
 
 use clap::Parser;
 use notify::Event;
+
+#[cfg(target_family = "unix")]
+use watchcrab::util::command_exec_unix as command_exec;
+
+#[cfg(target_family = "windows")]
+use watchcrab::util::command_exec_windows as command_exec;
+
 use watchcrab::util::{parse_command, write_to_log_file, write_to_log_file_async};
-use watchcrab::{watch_async, watch_sync};
+use watchcrab::Watch;
 
 /// Simple command line tool to watch a directory for changes and execute a command when an event is triggered
 #[derive(Parser, Debug)]
@@ -58,8 +66,10 @@ fn main() {
     let cmd_required = args.sh_cmd.is_some();
     if cmd_required && args.args.is_none() {
         panic!("Arguments are required when --sh-cmd is provided");
-    } else if cmd_required == false && args.args.is_some() {
-        // If args are provided but the shell command is not, then infer the shell command based on the OS
+    }
+
+    if cmd_required == false {
+        // If the shell command is not provided, then set the default shell command based on the OS
         args.sh_cmd = if cfg!(target_os = "windows") {
             Some("cmd /C".to_string())
         } else {
@@ -73,7 +83,7 @@ fn main() {
         .split(" ")
         .map(|s| s.to_string())
         .collect();
-    if sh_cmd_split.len() != 2 {
+    if sh_cmd_split.len() < 1 {
         panic!("Invalid shell command, should be in the format: <shell> <command> for example: /bin/bash -c");
     }
 
@@ -101,55 +111,77 @@ fn main() {
     }
 
     // Closure to handle the events
-    let f = move |event: Event| {
+    let f = Arc::new(Box::new(move |event: Event| {
+        // Get the path of the file that triggered the event
+        let path = event.paths.iter().next().unwrap().to_str().unwrap();
+        let clean_path = if cfg!(target_os = "windows") {
+            path.replace(r"\\?\", "")
+        } else {
+            path.to_string()
+        };
+
         // By default just prints the event kind and path of the file that triggered the event
         if !cmd_required && args.args.is_none() {
             let json_output = format!(
                 r#"{{"Kind": "{}", "Path": "{}"}}"#,
                 format!("{:?}", event.kind).as_str(),
-                event.paths.iter().next().unwrap().to_str().unwrap()
+                clean_path
             );
             if output_file_required {
                 write_to_log(&output_file_path, &json_output);
             } else {
                 println!("{}", json_output);
             }
-        // If args are provided, then parse the command and execute it
+            // If args are provided, then parse the command and execute it
         } else {
             let parsed_args = parse_command(
                 args.args.clone().unwrap().as_ref(),
-                &event.paths.iter().next().unwrap().to_str().unwrap(),
+                &clean_path,
                 &format!("{:?}", event.kind).as_str(),
             );
 
             // Execute the command and print the stdout and stderr
             let args_str = parsed_args.join(" ");
-            let output = Command::new(&sh_cmd_split[0])
-                .arg(&sh_cmd_split[1])
-                .arg(args_str)
-                .output()
-                .expect("failed to execute command");
+            let child: Child = command_exec(&sh_cmd_split, args_str);
 
-            let cmd_stdout = String::from_utf8_lossy(&output.stdout);
-            let cmd_stderr = String::from_utf8_lossy(&output.stderr);
+            if let Ok(output) = child.wait_with_output() {
+                let cmd_stdout = String::from_utf8_lossy(&output.stdout);
+                let cmd_stderr = String::from_utf8_lossy(&output.stderr);
 
-            let json_output = format!(
-                r#"{{"stdout": "{}", "stderr": "{}"}}"#,
-                cmd_stdout.trim(),
-                cmd_stderr.trim()
-            );
+                let json_output = format!(
+                    r#"{{"stdout": "{}", "stderr": "{}"}}"#,
+                    cmd_stdout.trim(),
+                    cmd_stderr.trim()
+                );
 
-            if output_file_required {
-                write_to_log(&output_file_path, &json_output);
+                if output_file_required {
+                    write_to_log(&output_file_path, &json_output);
+                } else {
+                    println!("{}", json_output);
+                }
             } else {
-                println!("{}", json_output);
+                eprintln!("Command terminated unexpectedly.");
             }
         }
-    };
+    }) as Box<dyn Fn(Event) + Send + Sync + 'static>);
 
-    if args.threads > 1 {
-        watch_async(&path, args.recursive, &args.events, f, args.threads);
-    } else {
-        watch_sync(&path, args.recursive, &args.events, f);
+    if cfg!(target_os = "windows") {
+        println!("Warning: In Windows, the graceful shutdown is not supported, so the commands can be abruptly terminated");
+        if args.threads > 1 {
+            println!("Warning: Be cautious when using multiple threads in Windows, as the commands can be abruptly terminated");
+        }
+    }
+
+    let watchcrab_watch = Watch::new(&path, args.recursive, &args.events, f, args.threads);
+    let result = watchcrab_watch.start();
+
+    match result {
+        Ok(_) => {
+            std::process::exit(0);
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
     }
 }

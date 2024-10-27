@@ -11,11 +11,14 @@ WatchCrab is currently with the main features implemented but is not stable yet.
 
 ## Features
 
-- Watch directories for filesystem events.
-- Execute shell commands when an event is triggered.
-- Optional asynchronous event handling.
-- Flexible and easy-to-use for automation workflows.
-- JSON output for easy parsing and integration with other tools.
+- **Directory Monitoring**: Observe directories for a wide range of filesystem events, including file creation, modification, deletion, and more.
+- **Automated Command Execution**: Optionally Trigger customizable shell commands automatically in response to detected events.
+- **Asynchronous Event Handling**: Optionally handle events asynchronously to improve performance and responsiveness.
+- **Optimized for Automation Workflows**: Designed to integrate smoothly into automation pipelines with minimal configuration.
+- **JSON Output**: Provides structured JSON output for straightforward parsing and seamless integration with other tools.
+- **Graceful Shutdown (Unix-like systems)**: Ensures safe program termination by waiting for all in-progress commands to finish executing before shutting down. This prevents abrupt termination, reducing the risk of data loss or unexpected errors.
+- **Cross-Platform Compatibility**: Runs on both Unix-like systems (Linux, macOS) and Windows.
+- **Logging of Command Output**: Optionally Saves the `stdout` and `stderr` of executed commands to a file for easy debugging and record-keeping.
 
 ## Installation
 
