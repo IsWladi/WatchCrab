@@ -73,6 +73,7 @@ pub fn write_to_log_file(output_file_path: &PathBuf, output: &str) {
 }
 
 ///Execute a command on Unix disabling the termination signal for the child process
+#[cfg(target_family = "unix")]
 pub fn command_exec_unix(sh_cmd_split: &Vec<String>, args_str: String) -> Child {
     unsafe {
         Command::new(&sh_cmd_split[0])
@@ -95,6 +96,7 @@ pub fn command_exec_unix(sh_cmd_split: &Vec<String>, args_str: String) -> Child 
 }
 
 ///Execute a command on Windows
+#[cfg(target_family = "windows")]
 pub fn command_exec_windows(sh_cmd_split: &Vec<String>, args_str: String) -> Child {
     Command::new(&sh_cmd_split[0])
         .arg(&sh_cmd_split[1])
