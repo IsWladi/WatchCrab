@@ -86,18 +86,24 @@ impl<'a> Watch<'a> {
             .unwrap();
 
         let term = Arc::new(AtomicBool::new(false));
-        signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term))?;
+
+        let mut is_windows = true;
+        if !cfg!(target_os = "windows") {
+            signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term))?;
+            is_windows = false;
+        }
+
         let mut cleaning_mode = false;
 
         loop {
-            if term.load(Ordering::Relaxed) && !cleaning_mode {
+            if !is_windows && term.load(Ordering::Relaxed) && !cleaning_mode {
                 // Stop the watcher
                 let _ = watcher.unwatch(self.path.canonicalize().unwrap().as_path());
                 cleaning_mode = true;
                 // Continue to process remaining events
             }
 
-            if cleaning_mode {
+            if !is_windows && cleaning_mode {
                 // Use try_recv to process remaining events
                 match rx.try_recv() {
                     Ok(event_result) => {

@@ -1,6 +1,6 @@
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 
 use clap::Parser;
@@ -126,25 +126,36 @@ fn main() {
 
             // Execute the command and print the stdout and stderr
             let args_str = parsed_args.join(" ");
+            let child: Child;
 
-            let child = unsafe {
-                Command::new(&sh_cmd_split[0])
+            if cfg!(target_os = "windows") {
+                child = Command::new(&sh_cmd_split[0])
                     .arg(&sh_cmd_split[1])
                     .arg(args_str)
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
-                    .pre_exec(|| {
-                        if libc::setsid() == -1 {
-                            return Err(std::io::Error::last_os_error());
-                        }
-
-                        libc::signal(libc::SIGINT, libc::SIG_IGN);
-
-                        Ok(())
-                    })
                     .spawn()
-                    .expect("failed to execute command")
-            };
+                    .expect("failed to execute command");
+            } else {
+                child = unsafe {
+                    Command::new(&sh_cmd_split[0])
+                        .arg(&sh_cmd_split[1])
+                        .arg(args_str)
+                        .stdout(Stdio::piped())
+                        .stderr(Stdio::piped())
+                        .pre_exec(|| {
+                            if libc::setsid() == -1 {
+                                return Err(std::io::Error::last_os_error());
+                            }
+
+                            libc::signal(libc::SIGINT, libc::SIG_IGN);
+
+                            Ok(())
+                        })
+                        .spawn()
+                        .expect("failed to execute command")
+                };
+            }
 
             if let Ok(output) = child.wait_with_output() {
                 let cmd_stdout = String::from_utf8_lossy(&output.stdout);
@@ -167,11 +178,13 @@ fn main() {
         }
     }) as Box<dyn Fn(Event) + Send + Sync + 'static>);
 
-    // if windows, warning about the threads flag
-    if cfg!(target_os = "windows") && args.threads > 1 {
-        // The program may not work as expected on Windows with multiple threads when send a termination signal
-        eprintln!("Warning: The program may not work as expected on Windows with multiple threads when send a termination signal");
+    if cfg!(target_os = "windows") {
+        println!("Warning: In Windows, the graceful shutdown is not supported, so the commands can be abruptly terminated");
+        if args.threads > 1 {
+            println!("Warning: Be cautious when using multiple threads in Windows, as the commands can be abruptly terminated");
+        }
     }
+
     let watchcrab_watch = Watch::new(&path, args.recursive, &args.events, f, args.threads);
     let result = watchcrab_watch.start();
 
