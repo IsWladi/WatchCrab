@@ -1,13 +1,12 @@
 use std::io::Error;
-use std::sync::atomic::{AtomicBool, Ordering};
 
-use std::sync::mpsc::channel;
 use std::thread;
-use std::time::Duration;
 use std::{path::Path, sync::Arc};
 
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
+
+use crossbeam_channel::{select, unbounded};
 
 #[cfg(target_family = "unix")]
 use signal_hook::{
@@ -79,7 +78,7 @@ impl<'a> Watch<'a> {
     }
 
     pub fn start(&self) -> Result<(), Error> {
-        let (tx, rx) = channel();
+        let (tx, rx) = unbounded();
 
         let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
 
@@ -93,68 +92,55 @@ impl<'a> Watch<'a> {
             .watch(self.path.canonicalize().unwrap().as_path(), recursive_mode)
             .unwrap();
 
-        let is_windows = if cfg!(windows) { true } else { false };
-
-        let term = Arc::new(AtomicBool::new(false));
-
+        // Signal handling for graceful shutdown
         #[cfg(unix)]
-        {
+        let signal_rx = {
+            let (signal_tx, signal_rx) = unbounded();
             let mut signals = Signals::new(&[SIGINT, SIGTERM])?;
-            let term_clone = Arc::clone(&term);
             thread::spawn(move || {
                 for sig in signals.forever() {
                     if sig == SIGINT || sig == SIGTERM {
-                        term_clone.store(true, Ordering::Relaxed);
-                        break; // Break the signal loop
+                        // Send signal to the main thread to stop the watcher
+                        let _ = signal_tx.send(());
+                        break;
                     }
                 }
             });
-        }
-
-        let mut cleaning_mode = false;
+            signal_rx
+        };
 
         loop {
-            if !is_windows && term.load(Ordering::Relaxed) && !cleaning_mode {
-                // Stop the watcher
-                let _ = watcher.unwatch(self.path.canonicalize().unwrap().as_path());
-                cleaning_mode = true;
-                // Continue to process remaining events
-            }
-
-            if !is_windows && cleaning_mode {
-                // Use try_recv to process remaining events
-                match rx.try_recv() {
-                    Ok(event_result) => {
-                        process_event(event_result, &self.events, &self.f, &self.pool);
+            #[cfg(unix)]
+            {
+                select! {
+                    recv(rx) -> event_result => {
+                        match event_result {
+                            Ok(event_result) => {
+                                process_event(event_result, &self.events, &self.f, &self.pool);
+                            }
+                            Err(_) => break, // Closed channel, exit the loop
+                        }
                     }
-                    Err(std::sync::mpsc::TryRecvError::Empty) => {
-                        // No more events, break the loop
-                        break;
-                    }
-                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                        // Channel disconnected, break the loop
+                    recv(signal_rx) -> _ => {
+                        println!("Termination signal received, stopping the watcher...");
+                        let _ = watcher.unwatch(self.path.canonicalize().unwrap().as_path());
+                        // Process pending events
+                        while let Ok(event_result) = rx.try_recv() {
+                            process_event(event_result, &self.events, &self.f, &self.pool);
+                        }
                         break;
                     }
                 }
-            } else {
-                match rx.recv_timeout(Duration::from_millis(100)) {
+            }
+
+            #[cfg(windows)]
+            {
+                // In Windows, the graceful shutdown is not supported, so the commands can be abruptly terminated
+                match rx.recv() {
                     Ok(event_result) => {
                         process_event(event_result, &self.events, &self.f, &self.pool);
                     }
-                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                        // Timeout occurred, check if termination flag is set
-                        if !is_windows && term.load(Ordering::Relaxed) {
-                            // Stop the watcher
-                            let _ = watcher.unwatch(self.path.canonicalize().unwrap().as_path());
-                            cleaning_mode = true;
-                            continue;
-                        }
-                        // Else, continue the loop
-                    }
-                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                        // Channel disconnected, break the loop
-                        break;
-                    }
+                    Err(_) => break, // Closed channel, exit the loop
                 }
             }
         }
