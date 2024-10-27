@@ -87,12 +87,10 @@ impl<'a> Watch<'a> {
 
         let term = Arc::new(AtomicBool::new(false));
 
-        let mut is_windows = true;
+        let is_windows = if cfg!(windows) { true } else { false };
 
         #[cfg(unix)]
         signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term))?;
-
-        is_windows = false;
 
         let mut cleaning_mode = false;
 

@@ -1,12 +1,16 @@
-#[cfg(target_family = "unix")]
-use std::os::unix::process::CommandExt;
-
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::Child;
 use std::sync::Arc;
 
 use clap::Parser;
 use notify::Event;
+
+#[cfg(target_family = "unix")]
+use watchcrab::util::command_exec_unix as command_exec;
+
+#[cfg(target_family = "windows")]
+use watchcrab::util::command_exec_windows as command_exec;
+
 use watchcrab::util::{parse_command, write_to_log_file, write_to_log_file_async};
 use watchcrab::Watch;
 
@@ -128,36 +132,7 @@ fn main() {
 
             // Execute the command and print the stdout and stderr
             let args_str = parsed_args.join(" ");
-            let child: Child;
-
-            if cfg!(target_os = "windows") {
-                child = Command::new(&sh_cmd_split[0])
-                    .arg(&sh_cmd_split[1])
-                    .arg(args_str)
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .spawn()
-                    .expect("failed to execute command");
-            } else {
-                child = unsafe {
-                    Command::new(&sh_cmd_split[0])
-                        .arg(&sh_cmd_split[1])
-                        .arg(args_str)
-                        .stdout(Stdio::piped())
-                        .stderr(Stdio::piped())
-                        .pre_exec(|| {
-                            if libc::setsid() == -1 {
-                                return Err(std::io::Error::last_os_error());
-                            }
-
-                            libc::signal(libc::SIGINT, libc::SIG_IGN);
-
-                            Ok(())
-                        })
-                        .spawn()
-                        .expect("failed to execute command")
-                };
-            }
+            let child: Child = command_exec(&sh_cmd_split, args_str);
 
             if let Ok(output) = child.wait_with_output() {
                 let cmd_stdout = String::from_utf8_lossy(&output.stdout);

@@ -1,4 +1,6 @@
 use std::io::prelude::*;
+use std::os::unix::process::CommandExt;
+use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::{fs::OpenOptions, path::PathBuf};
 
@@ -68,6 +70,39 @@ pub fn write_to_log_file(output_file_path: &PathBuf, output: &str) {
     if let Err(e) = writeln!(file, "{}", output) {
         eprintln!("Couldn't write to log file: {}", e);
     }
+}
+
+///Execute a command on Unix disabling the termination signal for the child process
+pub fn command_exec_unix(sh_cmd_split: &Vec<String>, args_str: String) -> Child {
+    unsafe {
+        Command::new(&sh_cmd_split[0])
+            .arg(&sh_cmd_split[1])
+            .arg(args_str)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .pre_exec(|| {
+                if libc::setsid() == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
+
+                libc::signal(libc::SIGINT, libc::SIG_IGN);
+
+                Ok(())
+            })
+            .spawn()
+            .expect("failed to execute command")
+    }
+}
+
+///Execute a command on Windows
+pub fn command_exec_windows(sh_cmd_split: &Vec<String>, args_str: String) -> Child {
+    Command::new(&sh_cmd_split[0])
+        .arg(&sh_cmd_split[1])
+        .arg(args_str)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to execute command")
 }
 
 #[cfg(test)]
