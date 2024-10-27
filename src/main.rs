@@ -66,8 +66,10 @@ fn main() {
     let cmd_required = args.sh_cmd.is_some();
     if cmd_required && args.args.is_none() {
         panic!("Arguments are required when --sh-cmd is provided");
-    } else if cmd_required == false && args.args.is_some() {
-        // If args are provided but the shell command is not, then infer the shell command based on the OS
+    }
+
+    if cmd_required == false {
+        // If the shell command is not provided, then set the default shell command based on the OS
         args.sh_cmd = if cfg!(target_os = "windows") {
             Some("cmd /C".to_string())
         } else {
@@ -175,7 +177,7 @@ fn main() {
 
     match result {
         Ok(_) => {
-            println!("Exiting watch from main");
+            std::process::exit(0);
         }
         Err(e) => {
             eprintln!("Error: {}", e);
