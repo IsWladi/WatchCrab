@@ -110,12 +110,20 @@ fn main() {
 
     // Closure to handle the events
     let f = Arc::new(Box::new(move |event: Event| {
+        // Get the path of the file that triggered the event
+        let path = event.paths.iter().next().unwrap().to_str().unwrap();
+        let clean_path = if cfg!(target_os = "windows") {
+            path.replace(r"\\?\", "")
+        } else {
+            path.to_string()
+        };
+
         // By default just prints the event kind and path of the file that triggered the event
         if !cmd_required && args.args.is_none() {
             let json_output = format!(
                 r#"{{"Kind": "{}", "Path": "{}"}}"#,
                 format!("{:?}", event.kind).as_str(),
-                event.paths.iter().next().unwrap().to_str().unwrap()
+                clean_path
             );
             if output_file_required {
                 write_to_log(&output_file_path, &json_output);
@@ -126,7 +134,7 @@ fn main() {
         } else {
             let parsed_args = parse_command(
                 args.args.clone().unwrap().as_ref(),
-                &event.paths.iter().next().unwrap().to_str().unwrap(),
+                &clean_path,
                 &format!("{:?}", event.kind).as_str(),
             );
 
