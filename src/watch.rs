@@ -2,10 +2,18 @@ use std::io::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use std::sync::mpsc::channel;
+use std::thread;
+use std::time::Duration;
 use std::{path::Path, sync::Arc};
 
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
+
+#[cfg(target_family = "unix")]
+use signal_hook::{
+    consts::{SIGINT, SIGTERM},
+    iterator::Signals,
+};
 
 /// Watch a directory for changes synchronously or asynchronously depending on the number of threads
 ///
@@ -85,12 +93,23 @@ impl<'a> Watch<'a> {
             .watch(self.path.canonicalize().unwrap().as_path(), recursive_mode)
             .unwrap();
 
-        let term = Arc::new(AtomicBool::new(false));
-
         let is_windows = if cfg!(windows) { true } else { false };
 
+        let term = Arc::new(AtomicBool::new(false));
+
         #[cfg(unix)]
-        signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term))?;
+        {
+            let mut signals = Signals::new(&[SIGINT, SIGTERM])?;
+            let term_clone = Arc::clone(&term);
+            thread::spawn(move || {
+                for sig in signals.forever() {
+                    if sig == SIGINT || sig == SIGTERM {
+                        term_clone.store(true, Ordering::Relaxed);
+                        break; // Break the signal loop
+                    }
+                }
+            });
+        }
 
         let mut cleaning_mode = false;
 
@@ -118,12 +137,22 @@ impl<'a> Watch<'a> {
                     }
                 }
             } else {
-                match rx.recv() {
+                match rx.recv_timeout(Duration::from_millis(100)) {
                     Ok(event_result) => {
                         process_event(event_result, &self.events, &self.f, &self.pool);
                     }
-                    Err(e) => {
-                        println!("Channel receive error: {:?}", e);
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                        // Timeout occurred, check if termination flag is set
+                        if !is_windows && term.load(Ordering::Relaxed) {
+                            // Stop the watcher
+                            let _ = watcher.unwatch(self.path.canonicalize().unwrap().as_path());
+                            cleaning_mode = true;
+                            continue;
+                        }
+                        // Else, continue the loop
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                        // Channel disconnected, break the loop
                         break;
                     }
                 }
