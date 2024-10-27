@@ -1,4 +1,6 @@
+#[cfg(target_family = "unix")]
 use std::os::unix::process::CommandExt;
+
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
