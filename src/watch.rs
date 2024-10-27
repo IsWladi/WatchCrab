@@ -1,18 +1,21 @@
 use std::io::Error;
 
-use std::thread;
 use std::{path::Path, sync::Arc};
 
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
 
-use crossbeam_channel::{select, unbounded};
-
+#[cfg(target_family = "unix")]
+use crossbeam_channel::select;
 #[cfg(target_family = "unix")]
 use signal_hook::{
     consts::{SIGINT, SIGTERM},
     iterator::Signals,
 };
+#[cfg(target_family = "unix")]
+use std::thread;
+
+use crossbeam_channel::unbounded;
 
 /// Watch a directory for changes synchronously or asynchronously depending on the number of threads
 ///
