@@ -1,5 +1,8 @@
 use std::io::prelude::*;
+
+#[cfg(target_family = "unix")]
 use std::os::unix::process::CommandExt;
+
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::{fs::OpenOptions, path::PathBuf};
