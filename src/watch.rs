@@ -12,10 +12,22 @@ use signal_hook::{
     consts::{SIGINT, SIGTERM},
     iterator::Signals,
 };
-#[cfg(target_family = "unix")]
-use std::thread;
 
 use crossbeam_channel::unbounded;
+use std::thread;
+
+#[cfg(target_family = "windows")]
+use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(target_family = "windows")]
+use std::time::Duration;
+#[cfg(target_family = "windows")]
+use windows::Win32::Foundation::BOOL;
+#[cfg(target_family = "windows")]
+use windows::Win32::System::Console::{SetConsoleCtrlHandler, CTRL_CLOSE_EVENT, CTRL_C_EVENT};
+
+// Global flag for Windows signal handling
+#[cfg(target_family = "windows")]
+static SHOULD_STOP: AtomicBool = AtomicBool::new(false);
 
 /// Watch a directory for changes synchronously or asynchronously depending on the number of threads
 ///
@@ -112,38 +124,40 @@ impl<'a> Watch<'a> {
             signal_rx
         };
 
-        loop {
-            #[cfg(unix)]
-            {
-                select! {
-                    recv(rx) -> event_result => {
-                        match event_result {
-                            Ok(event_result) => {
-                                process_event(event_result, &self.events, &self.f, &self.pool);
-                            }
-                            Err(_) => break, // Closed channel, exit the loop
-                        }
-                    }
-                    recv(signal_rx) -> _ => {
-                        println!("Termination signal received, stopping the watcher...");
-                        let _ = watcher.unwatch(self.path.canonicalize().unwrap().as_path());
-                        // Process pending events
-                        while let Ok(event_result) = rx.try_recv() {
-                            process_event(event_result, &self.events, &self.f, &self.pool);
-                        }
-                        break;
-                    }
-                }
+        #[cfg(target_family = "windows")]
+        let signal_rx = {
+            let (signal_tx, signal_rx) = unbounded();
+            unsafe {
+                SetConsoleCtrlHandler(Some(console_handler), BOOL(1))
+                    .expect("Failed to set control handler");
             }
+            thread::spawn(move || {
+                while !SHOULD_STOP.load(Ordering::SeqCst) {
+                    thread::sleep(Duration::from_millis(100));
+                }
+                let _ = signal_tx.send(()); // Notify main loop to stop
+            });
+            signal_rx
+        };
 
-            #[cfg(windows)]
-            {
-                // In Windows, the graceful shutdown is not supported, so the commands can be abruptly terminated
-                match rx.recv() {
+        loop {
+            select! {
+            recv(rx) -> event_result => {
+                match event_result {
                     Ok(event_result) => {
                         process_event(event_result, &self.events, &self.f, &self.pool);
                     }
                     Err(_) => break, // Closed channel, exit the loop
+                }
+            }
+                recv(signal_rx) -> _ => {
+                    println!("Termination signal received, stopping the watcher...");
+                    let _ = watcher.unwatch(self.path.canonicalize().unwrap().as_path());
+                    // Process pending events
+                    while let Ok(event_result) = rx.try_recv() {
+                        process_event(event_result, &self.events, &self.f, &self.pool);
+                    }
+                    break;
                 }
             }
         }
@@ -195,5 +209,17 @@ fn process_event(
         Err(e) => {
             println!("Watch error: {:?}", e);
         }
+    }
+}
+
+// Windows-specific console handler
+#[cfg(target_family = "windows")]
+unsafe extern "system" fn console_handler(ctrl_type: u32) -> BOOL {
+    match ctrl_type {
+        CTRL_C_EVENT | CTRL_CLOSE_EVENT => {
+            SHOULD_STOP.store(true, Ordering::SeqCst);
+            BOOL(1) // Return TRUE to indicate the event was handled
+        }
+        _ => BOOL(0),
     }
 }
