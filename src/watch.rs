@@ -4,9 +4,8 @@ use std::{path::Path, sync::Arc};
 
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
-
-#[cfg(target_family = "unix")]
 use crossbeam_channel::select;
+
 #[cfg(target_family = "unix")]
 use signal_hook::{
     consts::{SIGINT, SIGTERM},
