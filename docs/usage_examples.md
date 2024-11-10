@@ -1,5 +1,7 @@
 # Usage Examples
 
+WatchCrab provides flexible options for monitoring filesystem events and automating actions based on those events. Here are some example commands to help you get started.
+
 ## 1. Monitor filesystem events in a specific directory
 
 To start watching a directory for all filesystem events:
@@ -37,27 +39,48 @@ The `--args` flag allows you to run a custom shell command when an event is dete
 - `{kind}`: The type of event (e.g., create, modify, delete).
 - `{path}`: The path to the file that triggered the event.
 
-For example, to log each event:
+**Unix**
+
+By default, WatchCrab uses `sh -c` to execute commands on Unix-like systems (Linux, macOS). For example, to log each event:
 
 ```bash
 watchcrab --path /path/to/directory --args "echo 'Event: {kind} -> Path: {path}'"
 ```
 
-The `--args` string is passed directly to the shell, so you can use any valid shell command, by default it uses `sh -c` or `cmd /C` depending on the OS.
-
-You can choose the shell to use with the `--sh-cmd` flag:
+You can specify a different shell with the `--sh-cmd` flag, like `bash`:
 
 ```bash
-watchcrab --path /path/to/directory  --sh-cmd "bash -c" --args "echo 'Event: {kind} -> Path: {path}'"
+watchcrab --path /path/to/directory --sh-cmd "bash -c" --args "echo 'Event: {kind} -> Path: {path}'"
 ```
 
-## 5. Complex command execution
+**Windows**
 
-You can chain multiple commands together. For instance, to log an event, copy the file, and update a log file:
+On Windows, WatchCrab uses `cmd /C` by default to execute commands. To log each event in Windows:
+
+```powershell
+watchcrab --path C:\path\to\directory --args "echo Event: {kind} -> Path: {path}"
+```
+
+You can also specify a different shell, such as PowerShell, using `--sh-cmd`:
+
+```powershell
+watchcrab --path C:\path\to\directory --sh-cmd "powershell -Command" --args "Write-Output 'Event: {kind} -> Path: {path}'"
+```
+
+## 5. Flexible and Complex Command Execution
+
+With WatchCrab, you can execute any shell command in response to filesystem events, allowing for high flexibility to adapt to your specific needs and creativity. The `--args` flag supports chaining multiple commands together, so you can build custom workflows that suit your tasks.
+
+For example, you can log an event, copy the file to a backup folder, and update a log file in one command:
 
 ```bash
 watchcrab --path /path/to/directory --events create --args "echo 'Event: {kind} -> Path: {path}' && cp -r {path} ./backup && echo 'log {kind} -> {path}' >> ./log.log"
 ```
+
+The possibilities are endless. Here are a few ideas:
+- **Compress files on creation**: Automatically compress files when they are created.
+- **Trigger notifications**: Send desktop notifications or emails based on specific file events.
+- **Run custom scripts**: Launch scripts for data processing, backups, or even API requests.
 
 ## 6. Asynchronous execution
 
