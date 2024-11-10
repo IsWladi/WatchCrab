@@ -2,9 +2,9 @@ use std::io::Error;
 
 use std::{path::Path, sync::Arc};
 
+use crossbeam_channel::select;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
-use crossbeam_channel::select;
 
 #[cfg(target_family = "unix")]
 use signal_hook::{
@@ -150,7 +150,7 @@ impl<'a> Watch<'a> {
                 }
             }
                 recv(signal_rx) -> _ => {
-                    println!("Termination signal received, stopping the watcher...");
+                    println!("Termination signal received. Stopping the watcher... Waiting for ongoing tasks to complete...");
                     let _ = watcher.unwatch(self.path.canonicalize().unwrap().as_path());
                     // Process pending events
                     while let Ok(event_result) = rx.try_recv() {
