@@ -7,6 +7,13 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::{fs::OpenOptions, path::PathBuf};
 
+#[cfg(target_family = "windows")]
+use std::os::windows::process::CommandExt;
+
+//https://microsoft.github.io/windows-docs-rs/doc/windows/Win32/System/Threading/constant.CREATE_NO_WINDOW.html
+#[cfg(target_family = "windows")]
+use windows::Win32::System::Threading::CREATE_NO_WINDOW;
+
 lazy_static::lazy_static! {
     static ref LOG_FILE_MUTEX: Mutex<()> = Mutex::new(());
 }
@@ -104,6 +111,7 @@ pub fn command_exec_windows(sh_cmd_split: &Vec<String>, args_str: String) -> Chi
     Command::new(&sh_cmd_split[0])
         .arg(&sh_cmd_split[1])
         .arg(args_str)
+        .creation_flags(CREATE_NO_WINDOW.0)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
