@@ -7,7 +7,7 @@
 
 ## Project Status
 
-WatchCrab is currently with the main features implemented but is not stable yet. The project is under active development, and new features and improvements are being added regularly. If you encounter any issues or have suggestions for improvements, please open an issue.
+WatchCrab is now fully featured, and the project will be maintained to address any issues or bugs. New features may be added if deemed necessary. If you encounter any problems or have suggestions, please open an issue.
 
 ## Features
 
@@ -16,7 +16,7 @@ WatchCrab is currently with the main features implemented but is not stable yet.
 - **Asynchronous Event Handling**: Optionally handle events asynchronously to improve performance and responsiveness.
 - **Optimized for Automation Workflows**: Designed to integrate smoothly into automation pipelines with minimal configuration.
 - **JSON Output**: Provides structured JSON output for straightforward parsing and seamless integration with other tools.
-- **Graceful Shutdown (Unix-like systems)**: Ensures safe program termination by waiting for all in-progress commands to finish executing before shutting down. This prevents abrupt termination, reducing the risk of data loss or unexpected errors.
+- **Graceful Shutdown**: Ensures safe program termination by waiting for all in-progress commands to finish executing before shutting down. This prevents abrupt termination, reducing the risk of data loss or unexpected errors.
 - **Cross-Platform Compatibility**: Runs on both Unix-like systems (Linux, macOS) and Windows.
 - **Logging of Command Output**: Optionally Saves the `stdout` and `stderr` of executed commands to a file for easy debugging and record-keeping.
 
