@@ -165,22 +165,16 @@ fn main() {
         }
     }) as Box<dyn Fn(Event) + Send + Sync + 'static>);
 
-    if cfg!(target_os = "windows") {
-        println!("Warning: In Windows, the graceful shutdown is not supported, so the commands can be abruptly terminated");
-        if args.threads > 1 {
-            println!("Warning: Be cautious when using multiple threads in Windows, as the commands can be abruptly terminated");
-        }
-    }
-
     let watchcrab_watch = Watch::new(&path, args.recursive, &args.events, f, args.threads);
     let result = watchcrab_watch.start();
 
     match result {
         Ok(_) => {
+            println!("WatchCrab stopped successfully. All tasks have completed.");
             std::process::exit(0);
         }
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("WatchCrab Error: {}", e);
             std::process::exit(1);
         }
     }
