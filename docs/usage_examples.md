@@ -67,7 +67,7 @@ You can also specify a different shell, such as PowerShell, using `--sh-cmd`:
 watchcrab --path C:\path\to\directory --sh-cmd "powershell -Command" --args "Write-Output 'Event: {kind} -> Path: {path}'"
 ```
 
-## 5. Complex command execution
+## 5. Flexible and Complex Command Execution
 
 With WatchCrab, you can execute any shell command in response to filesystem events, allowing for high flexibility to adapt to your specific needs and creativity. The `--args` flag supports chaining multiple commands together, so you can build custom workflows that suit your tasks.
 
