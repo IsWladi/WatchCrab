@@ -91,6 +91,21 @@ impl<'a> Watch<'a> {
         }
     }
 
+    /// Starts watching the specified directory for filesystem events.
+    ///
+    /// This method initiates a file system watcher on the configured path, monitoring for the specified events.
+    /// It operates in synchronous or asynchronous mode depending on the number of threads specified.
+    /// If `num_threads` is greater than 1, events will be processed asynchronously using a thread pool.
+    /// Otherwise, events are handled in a synchronous manner.
+    ///
+    /// The watcher will run until a termination signal is received (SIGINT or SIGTERM on Unix, Ctrl+C or close event on Windows),
+    /// at which point it stops watching and completes any remaining tasks before shutting down gracefully.
+    ///
+    /// # Errors
+    /// Returns an `Error` if the watcher fails to initialize or if an error occurs while handling events.
+    ///
+    /// # Returns
+    /// `Ok(())` if the watcher starts and stops without errors.
     pub fn start(&self) -> Result<(), Error> {
         let (tx, rx) = unbounded();
 

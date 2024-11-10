@@ -105,7 +105,7 @@ pub fn command_exec_unix(sh_cmd_split: &Vec<String>, args_str: String) -> Child 
     }
 }
 
-///Execute a command on Windows
+///Execute a command on Windows disabling the termination signal for the child process
 #[cfg(target_family = "windows")]
 pub fn command_exec_windows(sh_cmd_split: &Vec<String>, args_str: String) -> Child {
     Command::new(&sh_cmd_split[0])
