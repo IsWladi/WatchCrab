@@ -3,22 +3,20 @@
 ![» Crate](https://flat.badgen.net/crates/v/watchcrab)
 ![» Downloads](https://flat.badgen.net/crates/d/watchcrab)
 
-`watchcrab` is a Rust-based command-line tool that monitors directories for filesystem events such as file creation, modification, and deletion. It allows you to execute shell commands when these events occur, making it ideal for automating file processing tasks or generating logs.
+`watchcrab` is a Rust-based command-line tool that monitors directories for filesystem events like file creation, modification, and deletion. It triggers shell commands in response to these events, making it ideal for automating file-processing workflows, generating logs, or integrating with larger automation systems.
 
 ## Project Status
 
 WatchCrab is now fully featured, and the project will be maintained to address any issues or bugs. New features may be added if deemed necessary. If you encounter any problems or have suggestions, please open an issue.
 
 ## Features
-
-- **Directory Monitoring**: Observe directories for a wide range of filesystem events, including file creation, modification, deletion, and more.
-- **Automated Command Execution**: Optionally Trigger customizable shell commands automatically in response to detected events.
-- **Asynchronous Event Handling**: Optionally handle events asynchronously to improve performance and responsiveness.
-- **Optimized for Automation Workflows**: Designed to integrate smoothly into automation pipelines with minimal configuration.
-- **JSON Output**: Provides structured JSON output for straightforward parsing and seamless integration with other tools.
-- **Graceful Shutdown**: Ensures safe program termination by waiting for all in-progress commands to finish executing before shutting down. This prevents abrupt termination, reducing the risk of data loss or unexpected errors.
-- **Cross-Platform Compatibility**: Runs on both Unix-like systems (Linux, macOS) and Windows.
-- **Logging of Command Output**: Optionally Saves the `stdout` and `stderr` of executed commands to a file for easy debugging and record-keeping.
+- **Directory Monitoring**: Monitors directories for events, such as file creation, modification, and deletion.
+- **Automated Command Execution**: Executes customizable shell commands in response to events.
+- **Asynchronous Event Handling**: Optionally handle events asynchronously for higher performance.
+- **JSON Output**: Outputs events in JSON for easier parsing and integration with other tools.
+- **Graceful Shutdown**: Waits for ongoing tasks to complete before termination, preventing data loss.
+- **Cross-Platform**: Compatible with Unix-like systems (Linux, macOS) and Windows.
+- **Command Logging**: Optionally logs stdout and stderr of commands for debugging.
 
 ## Installation
 
