@@ -1,9 +1,9 @@
 [package]
 name = "watchcrab"
-version = "0.6.0"
+version = "1.0.0"
 edition = "2021"
 description = """
-WatchCrab is a Rust-based command-line tool for monitoring directories, triggering custom actions on file system events like creation, modification, or deletion—ideal for automating tasks or logging changes, with seamless integration for advanced workflows.
+WatchCrab is a fast, secure, and easy-to-use Rust-based tool to monitor filesystem events across platforms. Effortlessly automate tasks and log changes.
 """
 license = "MIT"
 homepage = "https://github.com/IsWladi/WatchCrab"
