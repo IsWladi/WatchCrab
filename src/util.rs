@@ -96,8 +96,6 @@ pub fn command_exec_unix(sh_cmd_split: &Vec<String>, args_str: String) -> Child 
                     return Err(std::io::Error::last_os_error());
                 }
 
-                libc::signal(libc::SIGINT, libc::SIG_IGN);
-
                 Ok(())
             })
             .spawn()
